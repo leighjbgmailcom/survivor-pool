@@ -41,7 +41,9 @@ window.loadCsvPool = async function (base) {
     etransfer_email: kv.etransferemail || null, commissioner_name: kv.commissioner || null,
     picks_deadline: kv.picksdeadline || new Date(0).toISOString(), first_scoring_episode: int(kv.firstscoringepisode) || 1,
     picks_per_tribe: int(kv.pickspertribe) || 4, max_tribe_size: int(kv.maxtribesize) || 8,
-    merge_episode: int(kv.mergeepisode), merge_window_open: false, announcement: kv.announcement || null,
+    merge_episode: int(kv.mergeepisode), merge_window_open: false,
+    // 'entered' = every point (survival + finale placings) is a row in events.csv, the way Mark scores; 'auto' = site adds them
+    auto_points: norm(kv.survivalpoints) === 'auto', announcement: kv.announcement || null,
   };
 
   // castaways & tribes
@@ -75,9 +77,11 @@ window.loadCsvPool = async function (base) {
   const cep = [];
   episodes.filter((e) => e.is_scored && e.number >= settings.first_scoring_episode).forEach((e) => {
     castaways.forEach((c) => {
+      const mine = events.filter((v) => v.castaway_id === c.id && v.episode === e.number);
+      const bonus = mine.reduce((s, v) => s + categories[v.category_id - 1].points, 0);
+      if (!settings.auto_points) { if (mine.length || c.eliminated_episode == null || c.eliminated_episode >= e.number) cep.push({ castaway_id: c.id, episode: e.number, survival: 0, bonus }); return; }
       if (c.eliminated_episode != null && c.eliminated_episode < e.number) return;
       const survival = c.eliminated_episode == null || c.eliminated_episode > e.number ? (e.is_post_merge ? 3 : 1) : 0;
-      const bonus = events.filter((v) => v.castaway_id === c.id && v.episode === e.number).reduce((s, v) => s + categories[v.category_id - 1].points, 0);
       cep.push({ castaway_id: c.id, episode: e.number, survival, bonus });
     });
   });
@@ -114,7 +118,7 @@ window.loadCsvPool = async function (base) {
     let total = 0; const wk = {};
     mine.forEach((p) => {
       const weeklyPts = pts(p.c.id, p.start, p.end);
-      const finale = p.end == null ? ({ 1: 30, 2: 20, 3: 10 }[p.c.finish_place] || 0) : 0;
+      const finale = settings.auto_points && p.end == null ? ({ 1: 30, 2: 20, 3: 10 }[p.c.finish_place] || 0) : 0;
       const mvpBonus = p.is_mvp && p.c.finish_place === 1 ? 30 : 0;
       total += weeklyPts + finale + mvpBonus;
       cep.filter((x) => x.castaway_id === p.c.id && x.episode >= p.start && (p.end == null || x.episode <= p.end)).forEach((x) => (wk[x.episode] = (wk[x.episode] || 0) + x.survival + x.bonus));

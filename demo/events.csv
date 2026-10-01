@@ -1,49 +1,396 @@
 episode,castaway,event
-2,Maggie,Wins an individual Reward Challenge
-2,Rob,Uses a game advantage at Tribal Council
-2,Maggie,Says a bleeped curse word
-2,Rob,"Says ""I miss…"""
-2,Cristian,Finds a hidden immunity idol
-2,Kristin,Finds a hidden immunity idol
-3,Rob,Heated argument / shouts at another player
-3,Carter,Chooses to risk their vote
-3,Mike,Chooses to risk their vote
-3,An (Thien An),Finds or gets a game advantage
-3,An (Thien An),Finds a hidden immunity idol
-3,Mike,Wins a group Reward Challenge
-4,Rob,Uses a game advantage at Tribal Council
-4,Cristian,Plays their Shot in the Dark
-4,Ana,Wardrobe malfunction / blurred nudity
-4,Linnea,Cries with tears on camera
-4,An (Thien An),Hugs Jeff
-4,Lewis,Buys something with fire tokens
-5,An (Thien An),Wins a group Reward Challenge
-5,Jelly,Voted out holding an idol or advantage
-5,Jelly,Uses a game advantage at Tribal Council
-5,Linnea,Wins a group Immunity Challenge
-5,Kristin,Finds a fake immunity idol
-5,Maggie,Wardrobe malfunction / blurred nudity
-6,Brady,Buys something with fire tokens
-6,Rob,Finds a hidden immunity idol
-6,Kristin,Uses a game advantage at Tribal Council
-6,Carter,Wardrobe malfunction / blurred nudity
-6,Alexis,Buys something with fire tokens
-6,Brady,Wins an individual Reward Challenge
-7,Linnea,Hugs Jeff
-7,Eric,Wins a group Immunity Challenge
-7,Mike,Finds a hidden immunity idol
-7,Linnea,Wins a group Reward Challenge
-7,Alexis,Wins an individual Reward Challenge
-7,Eric,Finds a hidden immunity idol
-8,Brady,Wins an individual Reward Challenge
-8,Rob,Kisses another player still in the game
-8,Cristian,Hugs Jeff
-8,Kristin,Wins a group Immunity Challenge
-8,Mike,Finds a fake immunity idol
-8,Cristian,Gets chosen to go on reward
-9,Kristin,Voted out holding an idol or advantage
-9,Alexis,Finds a hidden immunity idol
-9,Maggie,Says a bleeped curse word
-9,Rob,Buys something with fire tokens
-9,Kristin,Buys something with fire tokens
-9,Jenna,Finds a hidden immunity idol
+2,Angelina,Won Group Immunity Challenge
+2,Angelina,Survived the Week (Pre-Merge)
+2,Aubry,Got or Found an Immunity Idol
+2,Aubry,Won Group Immunity Challenge
+2,Aubry,Survived the Week (Pre-Merge)
+2,Aubry,Cried on Camera
+2,Charlie,Won Group Reward Challenge
+2,Charlie,Won Group Immunity Challenge
+2,Charlie,Survived the Week (Pre-Merge)
+2,Chrissy,Won Group Reward Challenge
+2,Chrissy,Won Group Immunity Challenge
+2,Chrissy,Survived the Week (Pre-Merge)
+2,Christian,Gave Away an Immunity Idol
+2,Christian,Had a Wardrobe Malfunction or Showed Nudity
+2,Christian,Survived the Week (Pre-Merge)
+2,Christian,Won Group Reward Challenge
+2,Christian,Got or Found an Immunity Idol
+2,Christian,Said a Curse Word
+2,Cirie,Won Group Reward Challenge
+2,Cirie,Got or Found a Game Advantage
+2,Cirie,Survived the Week (Pre-Merge)
+2,Coach,Won Group Immunity Challenge
+2,Coach,Said a Curse Word
+2,Coach,Survived the Week (Pre-Merge)
+2,Coach,Won Group Reward Challenge
+2,Colby,Won Group Immunity Challenge
+2,Colby,Survived the Week (Pre-Merge)
+2,Dee,Won Group Immunity Challenge
+2,Dee,Survived the Week (Pre-Merge)
+2,Dee,Won Group Reward Challenge
+2,Emily,Survived the Week (Pre-Merge)
+2,Emily,Won Group Reward Challenge
+2,Genevieve,Won Group Immunity Challenge
+2,Genevieve,Cried on Camera
+2,Genevieve,Survived the Week (Pre-Merge)
+2,Genevieve,Searched Through Someone's Bag
+2,Joe,Survived the Week (Pre-Merge)
+2,Joe,Said a Curse Word
+2,Joe,Won Group Reward Challenge
+2,Jonathan,Won Group Immunity Challenge
+2,Jonathan,Survived the Week (Pre-Merge)
+2,Jonathan,Caught Seafood or Wildlife
+2,Jonathan,Won Group Reward Challenge
+2,Kamilla,Won Group Reward Challenge
+2,Kamilla,Won Group Immunity Challenge
+2,Kamilla,Cried on Camera
+2,Kamilla,Survived the Week (Pre-Merge)
+2,Mike,Won Group Reward Challenge
+2,Mike,Won Group Immunity Challenge
+2,Mike,Survived the Week (Pre-Merge)
+2,Ozzy,Survived the Week (Pre-Merge)
+2,Ozzy,Won Group Reward Challenge
+2,Q,Won Group Immunity Challenge
+2,Q,Survived the Week (Pre-Merge)
+2,Q,Said a Curse Word
+2,Q,Caught Seafood or Wildlife
+2,Rick,Said a Curse Word
+2,Rick,Created a Fake Idol
+2,Rick,Won Group Reward Challenge
+2,Rick,Survived the Week (Pre-Merge)
+2,Rizo,Won Group Immunity Challenge
+2,Rizo,Survived the Week (Pre-Merge)
+2,Savannah,Voted out With an Idol or Advantage
+2,Savannah,Torch Snuffed Due to Blindside
+2,Savannah,Voted out Unanimously
+2,Savannah,Cried on Camera
+2,Savannah,Won Group Reward Challenge
+2,Stephenie,Won Group Immunity Challenge
+2,Stephenie,Survived the Week (Pre-Merge)
+2,Tiffany,Won Group Immunity Challenge
+2,Tiffany,Survived the Week (Pre-Merge)
+2,Tiffany,Won Group Reward Challenge
+3,Angelina,Said a Curse Word
+3,Angelina,Survived the Week (Pre-Merge)
+3,Aubry,Won Group Reward Challenge
+3,Aubry,Won Group Immunity Challenge
+3,Aubry,Said a Curse Word
+3,Aubry,Survived the Week (Pre-Merge)
+3,Charlie,Won Group Immunity Challenge
+3,Charlie,Survived the Week (Pre-Merge)
+3,Charlie,Won Group Reward Challenge
+3,Chrissy,Cried on Camera
+3,Chrissy,Won Group Reward Challenge
+3,Chrissy,Won Group Immunity Challenge
+3,Chrissy,Survived the Week (Pre-Merge)
+3,Christian,Said a Curse Word
+3,Christian,Survived the Week (Pre-Merge)
+3,Cirie,Survived the Week (Pre-Merge)
+3,Cirie,Won Group Reward Challenge
+3,Cirie,Won Group Immunity Challenge
+3,Coach,Won Group Immunity Challenge
+3,Coach,Survived the Week (Pre-Merge)
+3,Coach,Said a Curse Word
+3,Coach,Won Group Reward Challenge
+3,Colby,Won Group Immunity Challenge
+3,Colby,Survived the Week (Pre-Merge)
+3,Colby,Won Group Reward Challenge
+3,Dee,Won Group Immunity Challenge
+3,Dee,Survived the Week (Pre-Merge)
+3,Dee,Won Group Reward Challenge
+3,Emily,Said a Curse Word
+3,Emily,Survived the Week (Pre-Merge)
+3,Genevieve,Won Group Immunity Challenge
+3,Genevieve,Survived the Week (Pre-Merge)
+3,Genevieve,Won Group Reward Challenge
+3,Joe,Won Group Reward Challenge
+3,Joe,Won Group Immunity Challenge
+3,Joe,Said a Curse Word
+3,Joe,Survived the Week (Pre-Merge)
+3,Jonathan,Won Group Immunity Challenge
+3,Jonathan,Survived the Week (Pre-Merge)
+3,Jonathan,Won Group Reward Challenge
+3,Kamilla,Won Group Reward Challenge
+3,Kamilla,Won Group Immunity Challenge
+3,Kamilla,Survived the Week (Pre-Merge)
+3,Kamilla,Said a Curse Word
+3,Mike,Survived the Week (Pre-Merge)
+3,Ozzy,Survived the Week (Pre-Merge)
+3,Q,Torch Snuffed Due to Blindside
+3,Q,Said a Curse Word
+3,Rick,Survived the Week (Pre-Merge)
+3,Rick,Won Group Reward Challenge
+3,Rick,Won Group Immunity Challenge
+3,Rizo,Won Group Immunity Challenge
+3,Rizo,Survived the Week (Pre-Merge)
+3,Rizo,Won Group Reward Challenge
+3,Stephenie,Survived the Week (Pre-Merge)
+3,Tiffany,Won Group Immunity Challenge
+3,Tiffany,Survived the Week (Pre-Merge)
+3,Tiffany,Won Group Reward Challenge
+4,Angelina,Survived the Week (Pre-Merge)
+4,Aubry,Survived the Week (Pre-Merge)
+4,Aubry,Won Group Reward Challenge
+4,Aubry,Won Group Immunity Challenge
+4,Charlie,Won Group Immunity Challenge
+4,Charlie,Survived the Week (Pre-Merge)
+4,Chrissy,Survived the Week (Pre-Merge)
+4,Chrissy,Won Group Reward Challenge
+4,Chrissy,Won Group Immunity Challenge
+4,Christian,Said a Curse Word
+4,Christian,Cried on Camera
+4,Christian,Survived the Week (Pre-Merge)
+4,Cirie,Won Group Immunity Challenge
+4,Cirie,Survived the Week (Pre-Merge)
+4,Coach,Won Group Reward Challenge
+4,Coach,Won Group Immunity Challenge
+4,Coach,Survived the Week (Pre-Merge)
+4,Coach,Cried on Camera
+4,Colby,Won Group Reward Challenge
+4,Colby,Won Group Immunity Challenge
+4,Colby,Survived the Week (Pre-Merge)
+4,Dee,Won Group Immunity Challenge
+4,Dee,Survived the Week (Pre-Merge)
+4,Dee,Cried on Camera
+4,Emily,Survived the Week (Pre-Merge)
+4,Genevieve,Won Group Reward Challenge
+4,Genevieve,Got or Found an Immunity Idol
+4,Genevieve,Gave Away an Immunity Idol
+4,Genevieve,Won Group Immunity Challenge
+4,Genevieve,Survived the Week (Pre-Merge)
+4,Joe,Won Group Reward Challenge
+4,Joe,Won Group Immunity Challenge
+4,Joe,Survived the Week (Pre-Merge)
+4,Jonathan,Won Group Immunity Challenge
+4,Jonathan,Survived the Week (Pre-Merge)
+4,Kamilla,Won Group Immunity Challenge
+4,Kamilla,Survived the Week (Pre-Merge)
+4,Mike,Torch Snuffed Due to Blindside
+4,Ozzy,Caught Seafood or Wildlife
+4,Ozzy,Survived the Week (Pre-Merge)
+4,Ozzy,Said a Curse Word
+4,Rick,Won Group Immunity Challenge
+4,Rick,Survived the Week (Pre-Merge)
+4,Rizo,Got or Found an Immunity Idol
+4,Rizo,Won Group Immunity Challenge
+4,Rizo,Survived the Week (Pre-Merge)
+4,Rizo,Said a Curse Word
+4,Stephenie,Said a Curse Word
+4,Stephenie,Survived the Week (Pre-Merge)
+4,Tiffany,Won Group Reward Challenge
+4,Tiffany,Won Group Immunity Challenge
+4,Tiffany,Survived the Week (Pre-Merge)
+5,Angelina,Torch Snuffed Due to Blindside
+5,Angelina,Voted out Unanimously
+5,Aubry,Won Group Immunity Challenge
+5,Aubry,Survived the Week (Pre-Merge)
+5,Charlie,Torch Snuffed Due to Blindside
+5,Chrissy,Survived the Week (Pre-Merge)
+5,Chrissy,Won Group Immunity Challenge
+5,Christian,Survived the Week (Pre-Merge)
+5,Cirie,Survived the Week (Pre-Merge)
+5,Coach,Won Group Immunity Challenge
+5,Coach,Survived the Week (Pre-Merge)
+5,Colby,Won Group Immunity Challenge
+5,Colby,Said a Curse Word
+5,Colby,Survived the Week (Pre-Merge)
+5,Dee,Survived the Week (Pre-Merge)
+5,Emily,Survived the Week (Pre-Merge)
+5,Genevieve,Won Group Immunity Challenge
+5,Genevieve,Survived the Week (Pre-Merge)
+5,Joe,Won Group Immunity Challenge
+5,Joe,Survived the Week (Pre-Merge)
+5,Jonathan,Survived the Week (Pre-Merge)
+5,Kamilla,Survived the Week (Pre-Merge)
+5,Ozzy,Survived the Week (Pre-Merge)
+5,Ozzy,Said a Curse Word
+5,Rick,Survived the Week (Pre-Merge)
+5,Rizo,Said a Curse Word
+5,Rizo,Survived the Week (Pre-Merge)
+5,Stephenie,Survived the Week (Pre-Merge)
+5,Tiffany,Won Group Immunity Challenge
+5,Tiffany,Survived the Week (Pre-Merge)
+6,Aubry,Survived the Week (Post-Merge)
+6,Aubry,Said a Curse Word
+6,Chrissy,Won Group Reward Challenge
+6,Chrissy,Survived the Week (Post-Merge)
+6,Christian,Survived the Week (Post-Merge)
+6,Christian,Said a Curse Word
+6,Christian,Won Individual Immunity
+6,Cirie,Survived the Week (Post-Merge)
+6,Cirie,Cried on Camera
+6,Coach,Survived the Week (Post-Merge)
+6,Coach,Said a Curse Word
+6,Colby,Voted Out Unanimously
+6,Colby,Cried on Camera
+6,Dee,Survived the Week (Post-Merge)
+6,Dee,Cried on Camera
+6,Dee,Won Individual Immunity
+6,Emily,Survived the Week (Post-Merge)
+6,Genevieve,Said a Curse Word
+6,Genevieve,Played Shot in the Dark
+6,Genevieve,Voted Out Unanimously
+6,Joe,Survived the Week (Post-Merge)
+6,Jonathan,Survived the Week (Post-Merge)
+6,Jonathan,Won Group Reward Challenge
+6,Kamilla,Won Group Reward Challenge
+6,Kamilla,Torch Snuffed Due to Blindside
+6,Ozzy,Got or Found a Game Advantage
+6,Ozzy,Survived the Week (Post-Merge)
+6,Rick,Survived the Week (Post-Merge)
+6,Rizo,Survived the Week (Post-Merge)
+6,Rizo,Chosen to Go on a Journey
+6,Stephenie,Won Individual Immunity
+6,Stephenie,Won Group Reward Challenge
+6,Stephenie,Survived the Week (Post-Merge)
+6,Tiffany,Won Group Reward Challenge
+6,Tiffany,Survived the Week (Post-Merge)
+7,Aubry,Played an Immunity Idol on Themself
+7,Aubry,Survived the Week (Post-Merge)
+7,Chrissy,Survived the Week (Post-Merge)
+7,Christian,Survived the Week (Post-Merge)
+7,Christian,Won Group Reward Challenge
+7,Cirie,Survived the Week (Post-Merge)
+7,Coach,Survived the Week (Post-Merge)
+7,Coach,Said a Curse Word
+7,Dee,Won Group Reward Challenge
+7,Dee,Said a Curse Word
+7,Dee,Played Shot in the Dark
+7,Emily,Said a Curse Word
+7,Emily,Won Group Reward Challenge
+7,Emily,Survived the Week (Post-Merge)
+7,Joe,Won Group Reward Challenge
+7,Joe,Survived the Week (Post-Merge)
+7,Jonathan,Survived the Week (Post-Merge)
+7,Ozzy,Won Individual Immunity
+7,Ozzy,Won Group Reward Challenge
+7,Ozzy,Survived the Week (Post-Merge)
+7,Rick,Survived the Week (Post-Merge)
+7,Rick,Said a Curse Word
+7,Rick,Won Group Reward Challenge
+7,Rizo,Survived the Week (Post-Merge)
+7,Stephenie,Said a Curse Word
+7,Stephenie,Won Group Reward Challenge
+7,Stephenie,Got or Found a Game Advantage
+7,Stephenie,Chosen to Go On a Journey
+7,Stephenie,Survived the Week (Post-Merge)
+7,Tiffany,Survived the Week (Post-Merge)
+8,Aubry,Survived the Week (Post-Merge)
+8,Chrissy,Said a Curse Word
+8,Christian,Survived the Week (Post-Merge)
+8,Cirie,Cried on Camera
+8,Cirie,Survived the Week (Post-Merge)
+8,Cirie,Chosen to Go on a Journey
+8,Coach,Played Shot in the Dark
+8,Emily,Survived the Week (Post-Merge)
+8,Joe,Won Group Immunity Challenge
+8,Joe,Won Group Reward Challenge
+8,Joe,Survived the Week (Post-Merge)
+8,Jonathan,Survived the Week (Post-Merge)
+8,Ozzy,Survived the Week (Post-Merge)
+8,Rick,Survived the Week (Post-Merge)
+8,Rick,Said a Curse Word
+8,Rizo,Survived the Week (Post-Merge)
+8,Rizo,Said a Curse Word
+8,Stephenie,Survived the Week (Post-Merge)
+8,Tiffany,Won Group Immunity Challenge
+8,Tiffany,Said a Curse Word
+8,Tiffany,Won Group Reward Challenge
+8,Tiffany,Survived the Week (Post-Merge)
+9,Aubry,Survived the Week (Post-Merge)
+9,Christian,Torch Snuffed Due to Blindside
+9,Christian,Said a Curse Word
+9,Christian,Chosen to Go on a Journey
+9,Cirie,Survived the Week (Post-Merge)
+9,Emily,Survived the Week (Post-Merge)
+9,Joe,Survived the Week (Post-Merge)
+9,Joe,"Said ""I Miss…"""
+9,Joe,Won Individual Immunity
+9,Jonathan,Survived the Week (Post-Merge)
+9,Ozzy,Survived the Week (Post-Merge)
+9,Ozzy,Said a Curse Word
+9,Rick,Said a Curse Word
+9,Rick,Survived the Week (Post-Merge)
+9,Rizo,Survived the Week (Post-Merge)
+9,Stephenie,Said a Curse Word
+9,Stephenie,Survived the Week (Post-Merge)
+9,Tiffany,Survived the Week (Post-Merge)
+10,Aubry,Survived the Week (Post-Merge)
+10,Aubry,Cried on Camera
+10,Cirie,Survived the Week (Post-Merge)
+10,Cirie,Cried on Camera
+10,Emily,Said a Curse Word
+10,Emily,Survived the Week (Post-Merge)
+10,Joe,Survived the Week (Post-Merge)
+10,Jonathan,Survived the Week (Post-Merge)
+10,Ozzy,Cried on Camera
+10,Ozzy,Survived the Week (Post-Merge)
+10,Rick,Hugged Jeff
+10,Rick,Got or Found a Game Advantage
+10,Rick,Got or Found an Immunity Idol
+10,Rick,Survived the Week (Post-Merge)
+10,Rick,Said a Curse Word
+10,Rick,Cried on Camera
+10,Rizo,Survived the Week (Post-Merge)
+10,Stephenie,Played a Game Advantage at Tribal
+10,Stephenie,Voted Out Unanimously
+10,Stephenie,Hugged Jeff
+10,Tiffany,Won Individual Immunity
+10,Tiffany,Cried on Camera
+10,Tiffany,Survived the Week (Post-Merge)
+11,Aubry,Survived the Week (Post-Merge)
+11,Cirie,Played a Game Advantage at Tribal
+11,Cirie,Survived the Week (Post-Merge)
+11,Emily,Said a Curse Word
+11,Joe,Survived the Week (Post-Merge)
+11,Jonathan,Cried on Camera
+11,Jonathan,Won Individual Immunity
+11,Jonathan,Got or Found a Game Advantage
+11,Jonathan,Survived the Week (Post-Merge)
+11,Ozzy,Said a Curse Word
+11,Ozzy,Voted Out Unanimously
+11,Ozzy,Cried on Camera
+11,Ozzy,Torch Snuffed Due to Blindside
+11,Ozzy,Voted out With an Idol or Advantage
+11,Rick,Cried on Camera
+11,Rick,Played an Immunity Idol on Themself
+11,Rick,Survived the Week (Post-Merge)
+11,Rizo,Survived the Week (Post-Merge)
+11,Tiffany,Survived the Week (Post-Merge)
+12,Aubry,Survived the Week (Post-Merge)
+12,Aubry,Said a Curse Word
+12,Aubry,Cried on Camera
+12,Cirie,Cried on Camera
+12,Cirie,Chosen to go on Reward
+12,Cirie,Hugged Jeff
+12,Joe,Won Individual Immunity
+12,Joe,Won Individual Reward
+12,Joe,Survived the Week (Post-Merge)
+12,Jonathan,Survived the Week (Post-Merge)
+12,Rick,Played Shot in the Dark
+12,Rick,Voted Out Unanimously
+12,Rick,Cried on Camera
+12,Rizo,Survived the Week (Post-Merge)
+12,Rizo,Chosen to go on Reward
+12,Tiffany,Survived the Week (Post-Merge)
+12,Tiffany,Said a Curse Word
+12,Tiffany,Won Individual Immunity
+13,Aubry,Hugged Jeff
+13,Aubry,Won Individual Immunity
+13,Aubry,Survived the Week (Post-Merge)
+13,Aubry,First Place Winner
+13,Aubry,Cried on Camera
+13,Joe,Third Place Winner
+13,Joe,Said a Curse Word
+13,Joe,Cried on Camera
+13,Joe,Survived the Week (Post-Merge)
+13,Jonathan,Survived the Week (Post-Merge)
+13,Jonathan,Won a Fire Making Challenge
+13,Jonathan,Won Individual Immunity
+13,Jonathan,Second Place Winner
+13,Rizo,Cried on Camera
+13,Rizo,Played an Immunity Idol on Themself
+13,Rizo,Hugged Jeff
+13,Tiffany,Said a Curse Word
+13,Tiffany,Voted Out Unanimously

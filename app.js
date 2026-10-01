@@ -123,7 +123,7 @@
     $('#pool-name').textContent = S.settings.pool_name;
     $('#pool-sub').textContent = `Season ${S.settings.season} · $${S.settings.entry_fee} entry · winner takes the pot`;
     $('#admin-tab').hidden = !S.isAdmin;
-    const note = [DEMO ? '🧪 DEMO — made-up results to show what the site can do. Remove ?demo from the address to see the real pool.' : '', S.settings.announcement || ''].filter(Boolean).join('\n');
+    const note = [DEMO ? '🧪 DEMO: last season (Survivor 50), scored to the finale. Remove ?demo from the address to see this season\'s pool.' : '', S.settings.announcement || ''].filter(Boolean).join('\n');
     const a = $('#announce'); a.hidden = !note; a.textContent = note;
   }
 
@@ -203,7 +203,7 @@
       html += `<div class="card"><h3>Week by week</h3><div class="scroll"><table class="grid-pts">
         <thead><tr><th>Player</th>${S.scored.map((e) => `<th>Ep ${e.number}</th>`).join('')}<th>Total</th></tr></thead>
         <tbody>${S.board.map((b) => `<tr class="${b.entry_id === meId ? 'me' : ''}"><td>${esc(b.display_name)}</td>${S.scored.map((e) => { const v = wk[b.entry_id]?.[e.number] || 0; return `<td class="${v ? '' : 'zero'}">${v}</td>`; }).join('')}<td><b>${b.total}</b></td></tr>`).join('')}</tbody>
-      </table></div><p class="small muted">Weekly columns exclude end-of-season finish bonuses, which appear in the total.</p></div>`;
+      </table></div><p class="small muted">Weekly columns don\'t include the MVP bonus, which is added to the total at the finale.</p></div>`;
     }
     el.innerHTML = html;
     $$('tr.click', el).forEach((tr) => (tr.onclick = () => { const id = tr.dataset.id; S.open.has(id) ? S.open.delete(id) : S.open.add(id); standings(); }));

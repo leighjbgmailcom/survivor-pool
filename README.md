@@ -4,7 +4,7 @@ A leaderboard website for our office Survivor pool. Scoring follows the
 [Global TV Survivor Fantasy Tribe rules](https://www.globaltv.com/survivor-51-fantasy-tribe/).
 
 **Live site:** `https://<owner>.github.io/<repo>/`
-**Demo with made-up results:** add `?demo` to the address.
+**Demo (last season, Survivor 50):** add `?demo` to the address.
 
 The site works in two modes:
 
@@ -38,13 +38,17 @@ Standings page says which line to fix.
 | `swap_out` | Only when all 8 of their picks were still in at the merge: the castaway they drop |
 
 ### Each week after the episode
-1. **`castaways.csv`**: put the episode number in `out_episode` for anyone voted out or who left.
-2. **`events.csv`**: add one row per bonus event: `episode,castaway,event`. The `event` text must
-   match a row in `scoring.csv` (copy and paste it). Each event counts once per castaway per week.
+1. **`events.csv`**: add one row per point, exactly like the *Points* sheet in your Cast Points
+   workbook: `episode,castaway,event`. That includes a `Survived the Week (Pre-Merge)` row (or
+   `Post-Merge` after the merge) for everyone still in. The `event` text must match a row in
+   `scoring.csv`, which uses the same category names as your workbook. You can copy the first
+   three columns of your Points sheet straight in.
+2. **`castaways.csv`**: put the episode number in `out_episode` for anyone voted out or who left.
 3. **`episodes.csv`**: put `yes` in `published` for that episode. Nothing counts until you do,
    so you can enter everything first and publish when you're ready.
 
-Survival points (1 a week before the merge, 3 after) are added automatically.
+(If you'd rather the site add survival points and finale placings automatically, set
+`Survival points` to `auto` in `settings.csv` and leave those rows out of `events.csv`.)
 
 ### At the merge
 - In `settings.csv`, set `Merge episode` to the episode in which the tribes merged.
@@ -53,8 +57,9 @@ Survival points (1 a week before the merge, 3 after) are added automatically.
   scores from the episode after the merge. Swapped-out players keep the points they earned.
 
 ### Finale
-In `castaways.csv`, set `finish` to `1`, `2` or `3`. The 30/20/10 bonuses and the 30-point MVP
-bonus are added automatically.
+Add the `First Place Winner`, `Second Place Winner` and `Third Place Winner` rows to `events.csv`,
+and set `finish` to `1`, `2` or `3` in `castaways.csv`. The 30-point MVP bonus is added
+automatically for everyone whose MVP finished first.
 
 ### `settings.csv`
 Pool name, entry fee, e-transfer email, picks deadline, first scoring episode, picks per tribe,
@@ -83,5 +88,6 @@ only admins can enter scores.
 - `index.html`, `style.css`, `app.js`: the site
 - `csv-data.js`: spreadsheet-mode loader and scorer
 - `config.js`: Supabase settings (placeholder = spreadsheet mode)
-- `data/`: the real pool · `demo/`: made-up example season
+- `data/`: the current season · `demo/`: Survivor 50, as a finished example
+- `tools/import_xlsx.py`: converts Mark's season workbooks into these CSVs, leaving out emails and notes
 - `supabase/`: database schema, security rules and seed data for Supabase mode

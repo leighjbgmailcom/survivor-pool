@@ -16,7 +16,7 @@ create table if not exists public.settings (
   picks_deadline        timestamptz not null,
   first_scoring_episode int         not null default 2,
   picks_per_tribe       int         not null default 4,
-  max_tribe_size        int         not null default 8,
+  max_tribe_size        int         not null default 6,
   merge_episode         int,                      -- last episode BEFORE merge picks start counting
   merge_window_open     boolean     not null default false,
   announcement          text

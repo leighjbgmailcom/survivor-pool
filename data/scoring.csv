@@ -1,41 +1,43 @@
 event,points
-Wins a group Immunity Challenge,5
-Wins a group Reward Challenge,5
-Gets chosen to go on reward,5
-Finds or gets a game advantage,5
-Plays a hidden immunity idol on themselves at Tribal,5
-Uses a game advantage at Tribal Council,5
-Cries with tears on camera,5
-Says a bleeped curse word,5
-"Says ""I miss…""",5
-Kisses another player still in the game,5
-Heated argument / shouts at another player,5
-Wardrobe malfunction / blurred nudity,5
-Chooses to risk their vote,5
-Finds a fake immunity idol,5
-Hugs Jeff,5
-Buys something with fire tokens,5
-Wins an individual Reward Challenge,10
-Finds a hidden immunity idol,10
-Voted out holding an idol or advantage,10
-Plays their Shot in the Dark,10
-Torch snuffed in a blindside,10
-Treated for a medical emergency,10
-Chooses to forfeit the game,10
-Catches seafood or wildlife,10
-Tampers with or steals tribe food,10
-Plays a fake immunity idol at Tribal,10
-Searches through someone else's bag,10
-Voted out unanimously,10
-Idol played on them by another player,10
-Chosen to flip the million-dollar coin,10
-Sent on a journey or to Exile Island,10
-Wins an individual Immunity Challenge,15
-Draws a SAFE scroll from Shot in the Dark,15
-Wins a fire-making challenge,15
-Gives away or plays an idol for another player,15
-Creates a fake immunity idol,15
-Gets another player to play their fake idol,15
-Forced to leave the game (not voted out),15
-Returns to the game after elimination,15
-Flips the million-dollar coin and survives,15
+Survived the Week (Pre-Merge),1
+Survived the Week (Post-Merge),3
+Cried on Camera,5
+Got or Found a Game Advantage,5
+Chosen to go on Reward,5
+Got or Found a FAKE Immunity Idol,5
+Got Into a Heated Argument or Shouted,5
+Had a Wardrobe Malfunction or Showed Nudity,5
+Kissed Another Player Still In The Game,5
+Played an Immunity Idol on Themself,5
+Risked Their Vote,5
+"Said ""I Miss…""",5
+Said a Curse Word,5
+Played a Game Advantage at Tribal,5
+Won Group Immunity Challenge,5
+Won Group Reward Challenge,5
+Caught Seafood or Wildlife,10
+Chose to Forfeit,10
+Got or Found an Immunity Idol,10
+Got Treated for a Medical Emergency,10
+Played Shot in the Dark,10
+Torch Snuffed Due to Blindside,10
+Won Individual Reward,10
+Third Place Winner,10
+Voted out Unanimously,10
+Voted out With an Idol or Advantage,10
+Searched Through Someone's Bag,10
+Had an Imunitity Idol Played for Themself,10
+Played a Fake Idol at Tribal,10
+Tampered with or Stole the Tribe's Food,10
+Won Individual Immunity,15
+Created a Fake Idol,15
+Safe After Playing Shot in the Dark,15
+Gave Away an Immunity Idol,15
+Played an Immunity Idol on Someone Else,15
+Successfully Had a Fake Idol Played,15
+Won a Fire Making Challenge,15
+Forced to Leave the Game,15
+Second Place Winner,20
+First Place Winner,30
+Hugged Jeff,5
+Chosen to go on a Journey,5
