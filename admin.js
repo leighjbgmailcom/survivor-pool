@@ -307,7 +307,7 @@
   // ---------- castaways ----------
   function castaways() {
     main.innerHTML = `<div class="card"><h2>Castaways</h2>
-      <p class="small muted">Set this up at the start of each season. Who's out and the scores come from Global TV automatically. Fill in <b>Out in ep</b> or <b>Finish</b> only to correct something.</p>
+      <p class="small muted">${S.castaways.some((c) => c.name) ? '' : "<b>No cast yet.</b> It fills in automatically from Global's Fantasy Tribe page (the Results page in Settings) once Global posts the tribes; the site checks every morning. You can also type it in here. "}The cast, who's out and the scores all come from Global TV. Fill in <b>Out in ep</b> or <b>Finish</b> only to correct something.</p>
       <form id="f"><div class="scroll"><table><thead><tr><th>Name</th><th>Tribe</th><th>Other spellings <span class="help">(separate with ;)</span></th><th>Out in ep</th><th>Finish</th><th></th></tr></thead><tbody>
       ${S.castaways.map((c, i) => `<tr><td><input data-i="${i}" data-k="name" value="${esc(c.name)}"></td><td><input data-i="${i}" data-k="tribe" value="${esc(c.tribe)}" style="width:110px"></td>
         <td><input data-i="${i}" data-k="aliases" value="${esc(c.aliases)}"></td><td><input data-i="${i}" data-k="out_episode" value="${esc(c.out_episode)}" style="width:70px"></td>
@@ -337,7 +337,7 @@
       <div class="row" style="margin-top:12px"><button class="btn primary" id="svs">Save seasons</button></div></div>
 
       <div class="card" style="max-width:640px"><h2>Start a new season</h2>
-      <p class="small">Creates an empty season with the same settings and scoring categories as <b>${esc(editingSeason()?.name || '')}</b>, makes it the current season, and marks the old one finished. Then fill in the deadline, castaways and players.</p>
+      <p class="small">Creates an empty season with the same settings and scoring categories as <b>${esc(editingSeason()?.name || '')}</b>, makes it the current season, and marks the old one finished. Then set the picks deadline and add players. The cast and tribes fill in automatically from Global's page once it's posted.</p>
       <form id="ns"><div class="row"><label>Season number <input id="nsn" type="number" value="${next}" required></label>
       <label>Name <input id="nsname" value="Survivor ${next}"></label></div>
       <button class="btn primary">Create season</button></form></div>
@@ -381,7 +381,7 @@
         S.seasonRows.sort((a, b) => (+b.season || 0) - (+a.season || 0));
         await saveSeasonList(`Start ${name}`);
       }, `${name} created.`);
-      if (ok) { S.folder = dir; await loadAll(); S.tab = 'settings'; showApp(); toast(`${name} created. Set the picks deadline, then add the castaways and players.`); }
+      if (ok) { S.folder = dir; await loadAll(); S.tab = 'settings'; showApp(); toast(`${name} created. Set the picks deadline. The cast fills in from Global's page within a few minutes, once Global has posted it.`); }
     };
   }
 

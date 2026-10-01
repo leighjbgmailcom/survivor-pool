@@ -74,13 +74,77 @@ def write_if_changed(path, text):
     return False
 
 
+COLOR_WORDS = {"yellow": "#E8B820", "gold": "#D9A400", "orange": "#E07A1F", "red": "#C8322B", "purple": "#7B4BB7",
+               "blue": "#2F6FC4", "teal": "#1F9AA0", "green": "#2B8A4E", "pink": "#D6548E", "black": "#333333",
+               "white": "#9A9A9A", "brown": "#8A5A2B"}
+
+
+def parse_cast(page):
+    """Read the tribe table ("Toka (Yellow Tribe) | Savu (Purple Tribe)" with castaways underneath).
+    Returns [(name, tribe, aliases)] and {tribe: colour} — empty if the page has no such table yet."""
+    for table in re.findall(r"<table\b.*?</table>", page, re.I | re.S):
+        rows = []
+        for tr in re.findall(r"<tr\b.*?</tr>", table, re.I | re.S):
+            cells = [html.unescape(re.sub(r"<[^>]+>", " ", c)) for c in re.findall(r"<t[hd]\b[^>]*>(.*?)</t[hd]>", tr, re.I | re.S)]
+            rows.append([re.sub(r"\s+", " ", c).strip() for c in cells])
+        rows = [r for r in rows if any(r)]
+        if len(rows) < 3 or not all(re.search(r"tribe", h, re.I) for h in rows[0] if h):
+            continue
+        tribes, colours = [], {}
+        for h in rows[0]:
+            name = re.sub(r"\s*\(.*\)", "", h).strip()
+            tribes.append(name)
+            word = re.search(r"\(\s*(\w+)", h)
+            if name and word and word.group(1).lower() in COLOR_WORDS:
+                colours[name] = COLOR_WORDS[word.group(1).lower()]
+        cast = []
+        for r in rows[1:]:
+            for i, cell in enumerate(r):
+                if not cell or i >= len(tribes) or not tribes[i]:
+                    continue
+                # An “Thien An” → name Thien An, also known as An
+                q = re.search(r"[\"“”']([^\"“”']+)[\"“”']", cell)
+                if q:
+                    outer = re.sub(r"[\"“”'][^\"“”']+[\"“”']", "", cell).strip()
+                    cast.append((q.group(1).strip(), tribes[i], outer))
+                else:
+                    cast.append((cell, tribes[i], ""))
+        if len(cast) >= 6:
+            return cast, colours
+    return [], {}
+
+
+def fill_cast(folder, page):
+    """Save Global's cast list, and fill castaways.csv from it when the season has no cast yet."""
+    cast, colours = parse_cast(page)
+    if not cast:
+        return
+    write_if_changed(os.path.join(folder, "official_cast.csv"), to_csv(["name", "tribe", "aliases"], cast))
+    path = os.path.join(folder, "castaways.csv")
+    existing = list(csv.DictReader(open(path, encoding="utf-8"))) if os.path.exists(path) else []
+    if any((r.get("name") or "").strip() for r in existing):
+        return  # organizers already set the cast; never overwrite it
+    write_if_changed(path, to_csv(["name", "tribe", "out_episode", "finish", "aliases"], [(n, t, "", "", a) for n, t, a in cast]))
+    if colours:
+        spath = os.path.join(folder, "settings.csv")
+        rows = [r for r in csv.reader(open(spath, encoding="utf-8")) if r]
+        have = {r[0].strip().lower() for r in rows}
+        for t, c in colours.items():
+            if f"tribe color {t}".lower() not in have:
+                rows.insert(len(rows) - 1 if rows[-1][0] == "Announcement" else len(rows), [f"Tribe color {t}", c])
+        write_if_changed(spath, to_csv(rows[0], rows[1:]))
+    print(f"{folder}: filled in the cast from Global TV ({len(cast)} castaways, tribes {', '.join(dict.fromkeys(t for _, t, _ in cast))})")
+
+
 def run(folder):
     settings = {r["setting"].strip().lower(): r["value"].strip() for r in csv.DictReader(open(os.path.join(folder, "settings.csv"), encoding="utf-8"))}
     url = settings.get("results page", "")
     if not url:
         print(f"{folder}: no 'Results page' in settings.csv, skipping")
         return
-    results, winner = parse(fetch(url))
+    page = fetch(url)
+    fill_cast(folder, page)
+    results, winner = parse(page)
     old_path = os.path.join(folder, "official_points.csv")
     if not results and os.path.exists(old_path) and len(open(old_path, encoding="utf-8").read().strip().splitlines()) > 1:
         print(f"{folder}: found no results on the page but already have some; leaving them alone (page format changed?)", file=sys.stderr)

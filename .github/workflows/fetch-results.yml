@@ -8,7 +8,7 @@ on:
     - cron: "17 13 * * *"       # daily catch-up, ~9 AM Eastern
   workflow_dispatch: {}         # "Run workflow" button on the Actions tab
   push:
-    paths: [".github/workflows/fetch-results.yml", "tools/fetch_results.py"]
+    paths: [".github/workflows/fetch-results.yml", "tools/fetch_results.py", "seasons/seasons.csv"]   # also runs right after a new season is started
 
 permissions:
   contents: write
