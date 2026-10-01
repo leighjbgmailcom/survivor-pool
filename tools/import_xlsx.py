@@ -1,6 +1,7 @@
 """Convert Mark's season workbooks (Players_Picks_Sxx.xlsx + Cast_Points_Sxx.xlsx) into the site's CSV files.
 Strips email addresses, notes and app keys so nothing private lands in the public repo.
-Usage: python3 tools/import_xlsx.py Players_Picks_S51.xlsx Cast_Points_S51.xlsx data/ --season 51 ...
+Usage: python3 tools/import_xlsx.py Players_Picks_S49.xlsx Cast_Points_S49.xlsx seasons/49 --season 49 --pool-name "Survivor 49 Fantasy Pool" --deadline 2025-09-24T20:00:00-04:00
+Then add the season to seasons/seasons.csv (status "finished").
 """
 import argparse, csv, collections, os, re, sys, warnings
 import openpyxl
@@ -81,6 +82,6 @@ w("settings.csv", ["setting", "value"], [
     ("Pool name", a.pool_name), ("Season", a.season), ("Entry fee", "10"), ("E-transfer email", "markrirwin@hotmail.com"),
     ("Commissioner", "Mark Irwin"), ("Picks deadline", a.deadline), ("First scoring episode", "2"),
     ("Picks per tribe", a.picks_per_tribe), ("Max tribe size", a.max_tribe_size), ("Merge episode", a.merge_episode),
-    ("Survival points", "entered"),
+    ("Survival points", "entered"), ("Results page", f"https://www.globaltv.com/survivor-{a.season}-fantasy-tribe/"),
 ] + [(f"Tribe color {t}", c) for t, c in colors.items()] + [("Announcement", a.announcement)])
 print(f"{a.out}: {len(castaways)} castaways, {len(out)} players, {len(pts)} point rows, episodes scored {scored}, post-merge from {post[:1]}")

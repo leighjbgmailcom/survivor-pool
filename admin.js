@@ -7,7 +7,6 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
-  const FOLDER = 'data';
   const REPO = cfg.GITHUB_REPO || (location.hostname.endsWith('.github.io') ? `${location.hostname.split('.')[0]}/${location.pathname.split('/')[1]}` : '');
   const BRANCH = cfg.GITHUB_BRANCH || 'main';
   const main = $('#main');
@@ -80,8 +79,20 @@
   const toCsv = (rows) => rows.map((r) => r.map(cell).join(',')).join('\n') + '\n';
 
   // ---------- data model ----------
+  async function loadSeasonList() {
+    S.seasonRows = parseCsv(await readFile('seasons/seasons.csv')).slice(1).map(([season, name, status]) => ({ season, name: name || `Survivor ${season}`, status: (status || '').toLowerCase() }))
+      .sort((a, b) => (+b.season || 0) - (+a.season || 0));
+    if (!S.folder || !S.seasonRows.some((x) => `seasons/${x.season}` === S.folder)) {
+      const cur = S.seasonRows.find((x) => x.status === 'current') || S.seasonRows[0];
+      S.folder = `seasons/${cur.season}`;
+    }
+  }
+  const editingSeason = () => S.seasonRows.find((x) => `seasons/${x.season}` === S.folder);
+  const saveSeasonList = (msg) => writeFile('seasons/seasons.csv', toCsv([['season', 'name', 'status'], ...S.seasonRows.map((x) => [x.season, x.name, x.status])]), msg);
+
   async function loadAll() {
-    const [st, ca, pl] = await Promise.all(['settings', 'castaways', 'players'].map((f) => readFile(`${FOLDER}/${f}.csv`)));
+    await loadSeasonList();
+    const [st, ca, pl] = await Promise.all(['settings', 'castaways', 'players'].map((f) => readFile(`${S.folder}/${f}.csv`)));
     S.settings = parseCsv(st).slice(1).map(([k, v]) => ({ key: k, value: v ?? '' }));
     const c = parseCsv(ca); S.castHead = c[0]; S.castaways = c.slice(1).map((r) => Object.fromEntries(S.castHead.map((h, i) => [h, r[i] ?? ''])));
     const p = parseCsv(pl); const head = p[0];
@@ -89,7 +100,8 @@
       const o = Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()]));
       return { player: o.player, paid: /^(y|yes|true|x|1)$/i.test(o.paid), mvp: o.mvp, picks: head.filter((h) => /^pick\d+$/.test(h)).map((h) => o[h]).filter(Boolean), merge_pick: o.merge_pick || '', swap_out: o.swap_out || '' };
     });
-    $('#sub').textContent = setting('Pool name') || 'Pool admin';
+    const es = editingSeason();
+    $('#sub').textContent = `Editing ${es?.name || setting('Pool name')}${es?.status === 'finished' ? ' (finished)' : ''}`;
   }
   const setting = (k) => S.settings.find((s) => norm(s.key) === norm(k))?.value || '';
   const perTribe = () => parseInt(setting('Picks per tribe'), 10) || 4;
@@ -100,10 +112,10 @@
     const n = Math.max(perTribe() * tribes().length, ...S.players.map((p) => p.picks.length));
     const head = ['player', 'paid', 'mvp', ...Array.from({ length: n }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out'];
     const rows = S.players.map((p) => [p.player, p.paid ? 'yes' : '', p.mvp, ...Array.from({ length: n }, (_, i) => p.picks[i] || ''), p.merge_pick, p.swap_out]);
-    return writeFile(`${FOLDER}/players.csv`, toCsv([head, ...rows]), msg);
+    return writeFile(`${S.folder}/players.csv`, toCsv([head, ...rows]), msg);
   };
-  const saveSettings = () => writeFile(`${FOLDER}/settings.csv`, toCsv([['setting', 'value'], ...S.settings.map((s) => [s.key, s.value])]), 'Update pool settings');
-  const saveCastaways = () => writeFile(`${FOLDER}/castaways.csv`, toCsv([S.castHead, ...S.castaways.map((c) => S.castHead.map((h) => c[h] ?? ''))]), 'Update castaways');
+  const saveSettings = () => writeFile(`${S.folder}/settings.csv`, toCsv([['setting', 'value'], ...S.settings.map((s) => [s.key, s.value])]), 'Update pool settings');
+  const saveCastaways = () => writeFile(`${S.folder}/castaways.csv`, toCsv([S.castHead, ...S.castaways.map((c) => S.castHead.map((h) => c[h] ?? ''))]), 'Update castaways');
 
   async function busy(el, fn, ok) {
     el?.classList.add('saving');
@@ -178,7 +190,7 @@
   function showApp() {
     $('#tabs').hidden = false; $('#lock').hidden = false;
     $$('#tabs button').forEach((b) => { b.classList.toggle('on', b.dataset.tab === S.tab); b.onclick = () => { S.tab = b.dataset.tab; S.edit = null; showApp(); }; });
-    ({ players, settings, castaways, access })[S.tab]();
+    ({ players, settings, castaways, access, seasons })[S.tab]();
   }
   $('#lock').onclick = () => { try { sessionStorage.removeItem('pool-pass'); } catch {} S.token = null; lockScreen(); };
 
@@ -312,6 +324,67 @@
       e.preventDefault(); const before = S.castaways.map((c) => ({ ...c })); collect();
       S.castaways = S.castaways.filter((c) => c.name);
       if (!(await busy($('#f'), saveCastaways, 'Castaways saved.'))) S.castaways = before; else castaways();
+    };
+  }
+
+  // ---------- seasons ----------
+  function seasons() {
+    const next = Math.max(0, ...S.seasonRows.map((x) => +x.season || 0)) + 1;
+    main.innerHTML = `<div class="card"><h2>Seasons</h2>
+      <p class="small muted">The <b>current</b> season is what the site shows first and the one whose scores are fetched from Global TV each week. Finished seasons stay on the site's Seasons tab.</p>
+      <div class="scroll"><table><thead><tr><th>Season</th><th>Name</th><th>Status</th><th></th></tr></thead><tbody>
+      ${S.seasonRows.map((x, i) => `<tr><td>${esc(x.season)}</td><td><input data-n="${i}" value="${esc(x.name)}"></td>
+        <td><select data-st="${i}">${['current', 'finished', 'hidden'].map((o) => `<option ${o === x.status ? 'selected' : ''}>${o}</option>`).join('')}</select></td>
+        <td>${`seasons/${x.season}` === S.folder ? '<span class="pill good">editing</span>' : `<button class="btn small" data-ed="${esc(x.season)}">Edit this season</button>`}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="svs">Save seasons</button></div></div>
+
+      <div class="card" style="max-width:640px"><h2>Start a new season</h2>
+      <p class="small">Creates an empty season with the same settings and scoring categories as <b>${esc(editingSeason()?.name || '')}</b>, makes it the current season, and marks the old one finished. Then fill in the deadline, castaways and players.</p>
+      <form id="ns"><div class="row"><label>Season number <input id="nsn" type="number" value="${next}" required></label>
+      <label>Name <input id="nsname" value="Survivor ${next}"></label></div>
+      <button class="btn primary">Create season</button></form></div>
+
+      <div class="card" style="max-width:640px"><h2>Adding an old season</h2>
+      <p class="small muted">Send the season's two workbooks (Players_Picks and Cast_Points) to whoever set up the site. They convert them with <code>tools/import_xlsx.py</code>, leaving out emails and notes.</p></div>`;
+    $$('[data-ed]').forEach((b) => (b.onclick = async () => { S.folder = `seasons/${b.dataset.ed}`; S.edit = null; main.innerHTML = '<div class="card narrow muted">Loading…</div>'; try { await loadAll(); S.tab = 'players'; showApp(); } catch (e) { toast(e.message, true); seasons(); } }));
+    $('#svs').onclick = async () => {
+      const before = S.seasonRows.map((x) => ({ ...x }));
+      $$('[data-n]').forEach((el) => (S.seasonRows[+el.dataset.n].name = el.value.trim()));
+      $$('[data-st]').forEach((el) => (S.seasonRows[+el.dataset.st].status = el.value));
+      if (S.seasonRows.filter((x) => x.status === 'current').length !== 1) { S.seasonRows = before; return toast('Exactly one season should be "current".', true); }
+      if (!(await busy(main.firstElementChild, () => saveSeasonList('Update seasons'), 'Seasons saved.'))) S.seasonRows = before; else seasons();
+    };
+    $('#ns').onsubmit = async (e) => {
+      e.preventDefault();
+      const n = String(parseInt($('#nsn').value, 10)); const name = $('#nsname').value.trim() || `Survivor ${n}`;
+      if (!+n) return toast('Enter a season number.', true);
+      if (S.seasonRows.some((x) => x.season === n)) return toast(`Season ${n} already exists.`, true);
+      if (!confirm(`Create ${name} and make it the current season?`)) return;
+      const dir = `seasons/${n}`;
+      const set = S.settings.map((x) => ({ ...x }));
+      const put = (k, v) => { const r = set.find((x) => norm(x.key) === norm(k)); if (r) r.value = v; else set.push({ key: k, value: v }); };
+      put('Season', n); put('Pool name', `${name} Fantasy Pool`); put('Picks deadline', ''); put('Merge episode', ''); put('Announcement', '');
+      put('Results page', `https://www.globaltv.com/survivor-${n}-fantasy-tribe/`);
+      const ok = await busy(main, async () => {
+        const scoring = await readFile(`${S.folder}/scoring.csv`);
+        const per = perTribe(); const nt = Math.max(2, tribes().length);
+        const files = {
+          'settings.csv': toCsv([['setting', 'value'], ...set.map((x) => [x.key, x.value])]),
+          'scoring.csv': scoring,
+          'castaways.csv': toCsv([['name', 'tribe', 'out_episode', 'finish', 'aliases']]),
+          'players.csv': toCsv([['player', 'paid', 'mvp', ...Array.from({ length: per * nt }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out']]),
+          'episodes.csv': toCsv([['episode', 'air_date', 'post_merge', 'published'], ...Array.from({ length: 13 }, (_, i) => [i + 1, '', '', ''])]),
+          'events.csv': toCsv([['episode', 'castaway', 'event']]),
+          'official_points.csv': toCsv([['episode', 'castaway', 'points']]),
+        };
+        for (const [f, text] of Object.entries(files)) await writeFile(`${dir}/${f}`, text, `Start ${name}: ${f}`);
+        S.seasonRows.forEach((x) => { if (x.status === 'current') x.status = 'finished'; });
+        S.seasonRows.unshift({ season: n, name, status: 'current' });
+        S.seasonRows.sort((a, b) => (+b.season || 0) - (+a.season || 0));
+        await saveSeasonList(`Start ${name}`);
+      }, `${name} created.`);
+      if (ok) { S.folder = dir; await loadAll(); S.tab = 'settings'; showApp(); toast(`${name} created. Set the picks deadline, then add the castaways and players.`); }
     };
   }
 

@@ -4,7 +4,7 @@ Global posts each episode's results as an image whose alt text lists every casta
   "EPISODE 2 POINTS:"  <img src=".../survivor-50-episode-2-points.jpg" alt="Aubry total points: 21; Joe total points: 11; ...">
 and, at the finale, a tip naming the winner ("...if you chose Aubry as your MVP...").
 
-For every folder given (default: data and demo) this reads the "Results page" URL from settings.csv and writes
+For every folder given (default: every season marked "current" in seasons/seasons.csv) this reads the "Results page" URL from settings.csv and writes
   official_points.csv  episode,castaway,points
   official_meta.csv    key,value  (source, checked_at, episodes, winner)
 Only the files whose content actually changed are rewritten. Standard library only.
@@ -81,6 +81,10 @@ def run(folder):
         print(f"{folder}: no 'Results page' in settings.csv, skipping")
         return
     results, winner = parse(fetch(url))
+    old_path = os.path.join(folder, "official_points.csv")
+    if not results and os.path.exists(old_path) and len(open(old_path, encoding="utf-8").read().strip().splitlines()) > 1:
+        print(f"{folder}: found no results on the page but already have some; leaving them alone (page format changed?)", file=sys.stderr)
+        return
     rows = [(ep, name, pts) for ep in sorted(results) for name, pts in results[ep].items()]
     changed = write_if_changed(os.path.join(folder, "official_points.csv"), to_csv(["episode", "castaway", "points"], rows))
     meta_path = os.path.join(folder, "official_meta.csv")
@@ -95,8 +99,14 @@ def run(folder):
     print(f"{folder}: episodes {sorted(results) or 'none yet'}{', winner ' + winner if winner else ''}{' (updated)' if changed else ' (no change)'}")
 
 
+def active_seasons():
+    """Folders of seasons that are still running (status 'current'), from seasons/seasons.csv."""
+    rows = csv.DictReader(open(os.path.join("seasons", "seasons.csv"), encoding="utf-8"))
+    return [os.path.join("seasons", r["season"].strip()) for r in rows if (r.get("status") or "").strip().lower() == "current"]
+
+
 if __name__ == "__main__":
-    for folder in sys.argv[1:] or ["data", "demo"]:
+    for folder in sys.argv[1:] or active_seasons():
         try:
             run(folder)
         except Exception as e:  # one season failing shouldn't stop the other

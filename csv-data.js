@@ -1,9 +1,7 @@
 /* Spreadsheet mode: builds the whole pool (standings, picks, points) from the CSV files in /data.
    Scoring mirrors supabase/schema.sql so the two modes always agree. */
-window.loadCsvPool = async function (base) {
-  const warnings = [];
-
-  function parseCsv(text) {
+window.parseCsvText = (function () {
+  return function parseCsv(text) {
     const rows = []; let row = [], cell = '', q = false;
     text = text.replace(/^﻿/, '');
     for (let i = 0; i < text.length; i++) {
@@ -22,6 +20,20 @@ window.loadCsvPool = async function (base) {
       const o = { _line: i + 2 }; head.forEach((h, j) => (o[h] = (r[j] ?? '').trim())); return o;
     });
   }
+})();
+
+// seasons/seasons.csv lists every season: season,name,status (current | finished)
+window.loadSeasons = async function () {
+  const res = await fetch('seasons/seasons.csv?t=' + Date.now());
+  if (!res.ok) throw new Error('seasons/seasons.csv not found');
+  return window.parseCsvText(await res.text()).map((r) => ({ season: r.season, name: r.name || 'Season ' + r.season, status: (r.status || '').toLowerCase() }))
+    .filter((x) => x.season && x.status !== 'hidden').sort((a, b) => (+b.season || 0) - (+a.season || 0));
+};
+
+window.loadCsvPool = async function (base) {
+  const parseCsv = window.parseCsvText;
+  const warnings = [];
+
   async function get(name) {
     const res = await fetch(base + name + '?t=' + Date.now());
     if (!res.ok) throw new Error(`${base}${name} not found`);

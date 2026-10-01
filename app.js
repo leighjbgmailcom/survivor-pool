@@ -8,7 +8,7 @@
 
   // No Supabase configured yet → "spreadsheet mode": read-only site built from the CSV files in /data
   const CSV = !cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes('YOUR_');
-  const DEMO = CSV && new URLSearchParams(location.search).has('demo');
+  const params = new URLSearchParams(location.search);
   const sb = CSV ? null : window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
 
   const S = { tab: location.hash.slice(1) || 'standings', open: new Set(), adminEp: null };
@@ -88,7 +88,16 @@
   // ---------------- Data ----------------
   async function load() {
     if (CSV) {
-      try { Object.assign(S, await window.loadCsvPool(DEMO ? 'demo/' : 'data/')); }
+      try {
+        if (!S.seasons) {
+          S.seasons = await window.loadSeasons();
+          const current = S.seasons.find((x) => x.status === 'current') || S.seasons[0];
+          const wanted = params.get('season') || (params.has('demo') ? (S.seasons.find((x) => x.status === 'finished') || current).season : current.season);
+          S.season = S.seasons.find((x) => x.season === wanted) || current;
+          S.currentSeason = current;
+        }
+        Object.assign(S, await window.loadCsvPool(`seasons/${S.season.season}/`));
+      }
       catch (e) { toast('Could not load the spreadsheets: ' + errMsg(e), true); throw e; }
       finishLoad(); return;
     }
@@ -123,8 +132,19 @@
     $('#pool-name').textContent = S.settings.pool_name;
     $('#pool-sub').textContent = `Season ${S.settings.season} · $${S.settings.entry_fee} entry · winner takes the pot`;
     $('#admin-tab').hidden = !S.isAdmin;
-    const note = [DEMO ? '🧪 DEMO: last season (Survivor 50), scored to the finale. Remove ?demo from the address to see this season\'s pool.' : '', S.settings.announcement || ''].filter(Boolean).join('\n');
-    const a = $('#announce'); a.hidden = !note; a.textContent = note;
+    const past = CSV && S.season && S.currentSeason && S.season.season !== S.currentSeason.season;
+    const a = $('#announce');
+    const parts = [];
+    if (past) parts.push(`📜 You're looking at <b>${esc(S.season.name)}</b>${S.season.status === 'finished' ? ' (finished)' : ''}. <a href="?season=${encodeURIComponent(S.currentSeason.season)}">Back to ${esc(S.currentSeason.name)} →</a>`);
+    if (S.settings.announcement && !past) parts.push(esc(S.settings.announcement));
+    a.hidden = !parts.length; a.innerHTML = parts.join('<br>');
+    if (CSV && S.seasons) {
+      $('#seasons-tab').hidden = false;
+      if (S.seasons.length > 1 && !$('#season-pick')) {
+        $('#who').innerHTML = `<label class="season-pick">Season <select id="season-pick">${S.seasons.map((x) => `<option value="${esc(x.season)}" ${x.season === S.season.season ? 'selected' : ''}>${esc(x.name)}${x.status === 'current' ? ' (now)' : ''}</option>`).join('')}</select></label>`;
+        $('#season-pick').onchange = (e) => { location.href = `?season=${encodeURIComponent(e.target.value)}#${S.tab}`; };
+      }
+    }
   }
 
   async function reload() { await load(); go(S.tab); }
@@ -135,7 +155,7 @@
     S.tab = tab; history.replaceState(null, '', '#' + tab);
     $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
     showOnly(tab);
-    ({ standings, mytribe, castaways: castawaysTab, rules, admin })[tab]();
+    ({ standings, mytribe, castaways: castawaysTab, rules, admin, seasons: seasonsTab })[tab]();
   }
   $$('#tabs button').forEach((b) => (b.onclick = () => go(b.dataset.tab)));
 
@@ -182,7 +202,7 @@
       const when = S.official.updated_at ? ` · updated ${esc(fmtDate(S.official.updated_at))}` : '';
       html += `<p class="small muted" style="margin:-6px 0 14px">Weekly scores come straight from the <a href="${esc(S.official.source)}" target="_blank" rel="noopener">official Global TV results</a> (episodes ${S.official.episodes.join(', ')})${when}.</p>`;
     }
-    if (!S.board.length) { el.innerHTML = html + `<div class="card muted">No entries yet.${CSV && !DEMO ? ' Want to see how it looks mid-season? <a href="?demo">Open the demo</a>.' : ''}</div>`; return; }
+    if (!S.board.length) { el.innerHTML = html + `<div class="card muted">No entries yet.${CSV && S.seasons?.some((x) => x.status === 'finished') ? ` Want to see a full season? <a href="?season=${encodeURIComponent(S.seasons.find((x) => x.status === 'finished').season)}">Look at ${esc(S.seasons.find((x) => x.status === 'finished').name)}</a>.` : ''}</div>`; return; }
 
     let rank = 0, prev = null;
     const rows = S.board.map((b, i) => {
@@ -367,6 +387,33 @@
         ${S.scored.map((e) => { const r = S.cep.find((x) => x.castaway_id === c.id && x.episode === e.number); const v = r ? r.survival + r.bonus : null; return `<td class="${v ? '' : 'zero'}" title="${esc(eventTitle(c.id, e.number))}">${v ?? '·'}</td>`; }).join('')}
         <td><b>${castawayTotal(c.id)}</b></td></tr>`).join('')}
       </tbody></table></div></div>`).join('') + `<p class="small muted">Hover or tap a number to see the breakdown. Totals exclude finish bonuses.</p>`;
+  }
+
+  // ---------------- Seasons (hall of fame) ----------------
+  async function seasonsTab() {
+    const el = $('#seasons');
+    el.innerHTML = '<div class="card muted">Loading seasons…</div>';
+    if (!S.history) {
+      S.history = await Promise.all(S.seasons.map(async (x) => {
+        try {
+          const d = x.season === S.season.season ? S : await window.loadCsvPool(`seasons/${x.season}/`);
+          const champ = d.board[0]; const ties = d.board.filter((b) => champ && b.total === champ.total);
+          const ss = d.castaways.find((c) => c.finish_place === 1);
+          const paid = d.board.filter((b) => b.paid).length;
+          return { ...x, players: d.board.length, pot: paid * Number(d.settings.entry_fee || 0), champs: champ ? ties.map((b) => b.display_name) : [], top: champ?.total, ss: ss?.name };
+        } catch (e) { return { ...x, error: true }; }
+      }));
+    }
+    if (S.tab !== 'seasons') return;
+    el.innerHTML = `<div class="card"><h2>Seasons</h2><div class="scroll"><table>
+      <thead><tr><th>Season</th><th>Pool winner</th><th class="num">Points</th><th>Sole Survivor</th><th class="num">Players</th><th class="num">Pot</th><th></th></tr></thead><tbody>
+      ${S.history.map((h) => h.error ? `<tr><td><b>${esc(h.name)}</b></td><td colspan="6" class="muted">Couldn't load this season's files.</td></tr>` : `<tr>
+        <td><b>${esc(h.name)}</b>${h.status === 'current' ? ' <span class="pill good">now</span>' : ''}</td>
+        <td>${h.status === 'finished' && h.champs.length ? '🏆 ' + esc(h.champs.join(' & ')) : h.champs.length ? `<span class="muted">Leading: ${esc(h.champs.join(' & '))}</span>` : '<span class="muted">—</span>'}</td>
+        <td class="num">${h.top ?? '—'}</td><td>${esc(h.ss || (h.status === 'finished' ? '' : 'TBD'))}</td>
+        <td class="num">${h.players}</td><td class="num">$${h.pot}</td>
+        <td><a class="btn small" href="?season=${encodeURIComponent(h.season)}#standings" style="text-decoration:none">View</a></td></tr>`).join('')}
+      </tbody></table></div><p class="small muted">Older seasons get added as we find their spreadsheets.</p></div>`;
   }
 
   // ---------------- Rules ----------------

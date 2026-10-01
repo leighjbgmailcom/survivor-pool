@@ -116,3 +116,9 @@ details summary { cursor: pointer; font-weight: 600; }
 .rules li { margin-bottom: 4px; }
 .cat-cols { columns: 3 220px; font-size: 14px; }
 .cat-cols div { break-inside: avoid; margin-bottom: 3px; }
+
+.season-pick { display: flex; align-items: center; gap: 6px; margin: 0; color: #E2C9A6; font-size: 13px; }
+.season-pick select { margin: 0; width: auto; padding: 5px 8px; background: #3B2414; color: #FBEFDD; border-color: #8A6A4A; font-size: 14px; }
+.announce a { color: inherit; font-weight: 600; }
+
+main a { color: var(--accent); }
