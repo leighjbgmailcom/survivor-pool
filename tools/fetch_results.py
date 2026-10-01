@@ -23,6 +23,7 @@ def fetch(url):
 def parse(page):
     """Return ({episode: {castaway: points}}, winner or None)."""
     results = {}
+    last_end = 0
     for m in re.finditer(r"<img\b[^>]*>", page, re.I | re.S):
         tag = m.group(0)
         alt = re.search(r'\balt\s*=\s*"([^"]*)"', tag, re.I | re.S) or re.search(r"\balt\s*=\s*'([^']*)'", tag, re.I | re.S)
@@ -32,18 +33,23 @@ def parse(page):
         pairs = re.findall(r"([^;:]+?)\s+total points?\s*:\s*(-?\d+)", text, re.I)
         if not pairs:
             continue
+        # Prefer the "EPISODE N POINTS" heading above the image; Global's filenames are sometimes wrong
+        # (Season 50's episode 8 image is named "...episode-9-points").
         ep = None
-        src = re.search(r'\b(?:data-)?src\s*=\s*["\']([^"\']+)', tag, re.I)
-        if src:
-            f = re.search(r"episode[-_ ]?(\d+)[-_ ]?points", src.group(1), re.I)
+        heads = re.findall(r"EPISODE\s+(\d+)\s+POINTS", re.sub(r"<[^>]+>", " ", page[last_end: m.start()]), re.I)
+        if heads:
+            ep = int(heads[-1])
+        else:
+            src = re.search(r'\b(?:data-)?src\s*=\s*["\']([^"\']+)', tag, re.I)
+            f = re.search(r"episode[-_ ]?(\d+)[-_ ]?points", src.group(1), re.I) if src else None
             if f:
                 ep = int(f.group(1))
-        if ep is None:  # fall back to the nearest "EPISODE N POINTS" heading above the image
-            heads = re.findall(r"EPISODE\s+(\d+)\s+POINTS", re.sub(r"<[^>]+>", " ", page[: m.start()]), re.I)
-            if heads:
-                ep = int(heads[-1])
+        last_end = m.end()
         if ep is None:
             print(f"  skipped an image with points but no episode number: {text[:60]}…", file=sys.stderr)
+            continue
+        if ep in results:
+            print(f"  episode {ep} appears twice on the page; keeping the first", file=sys.stderr)
             continue
         results[ep] = {name.strip(): int(p) for name, p in pairs}
     plain = html.unescape(re.sub(r"<[^>]+>", " ", page))
