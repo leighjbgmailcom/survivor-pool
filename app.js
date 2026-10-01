@@ -178,6 +178,10 @@
         ${S.settings.etransfer_email ? `<p class="muted">E-transfer your $${S.settings.entry_fee} to <b>${esc(S.settings.etransfer_email)}</b>.</p>` : ''}</div>`;
     }
 
+    if (S.official?.episodes?.length) {
+      const when = S.official.updated_at ? ` · updated ${esc(fmtDate(S.official.updated_at))}` : '';
+      html += `<p class="small muted" style="margin:-6px 0 14px">Weekly scores come straight from the <a href="${esc(S.official.source)}" target="_blank" rel="noopener">official Global TV results</a> (episodes ${S.official.episodes.join(', ')})${when}.</p>`;
+    }
     if (!S.board.length) { el.innerHTML = html + `<div class="card muted">No entries yet.${CSV && !DEMO ? ' Want to see how it looks mid-season? <a href="?demo">Open the demo</a>.' : ''}</div>`; return; }
 
     let rank = 0, prev = null;
@@ -316,6 +320,7 @@
     const lines = [];
     if (r.survival) lines.push(`Survived: ${r.survival}`);
     S.events.filter((e) => e.castaway_id === cid && e.episode === ep).forEach((e) => { const c = S.catById[e.category_id]; lines.push(`${c.label}: ${c.points}`); });
+    if (r.official) lines.push(`Global TV total: ${r.bonus}`);
     return lines.join('\n');
   }
 

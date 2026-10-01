@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Pool Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔑</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .pick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .pick-grid label.cb { font-weight: 400; display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+    .pick-grid label.cb.on { border-color: var(--accent); background: rgba(196,82,31,.08); }
+    .help { font-size: 13px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+    .set-row { display: grid; grid-template-columns: 220px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+    @media (max-width: 600px) { .set-row { grid-template-columns: 1fr; } }
+    .set-row input, .set-row select, .set-row textarea { margin-top: 0; }
+    td input, td select { margin: 0; padding: 6px 8px; }
+    .saving { opacity: .6; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <div class="brand"><span class="torch">🔑</span><div><h1>Pool Admin</h1><div class="sub" id="sub">For the commissioner</div></div></div>
+      <div class="who"><a class="btn small" href="./" style="color:#FBEFDD;border-color:#8A6A4A;text-decoration:none">View site</a><button class="btn small" id="lock" hidden>Lock</button></div>
+    </div>
+    <nav class="wrap tabs" id="tabs" hidden>
+      <button data-tab="players" class="on">Players &amp; picks</button>
+      <button data-tab="settings">Settings</button>
+      <button data-tab="castaways">Castaways</button>
+      <button data-tab="access">Passcode</button>
+    </nav>
+  </header>
+  <main class="wrap" id="main"><div class="card narrow muted">Loading…</div></main>
+  <div id="toast" class="toast" hidden></div>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

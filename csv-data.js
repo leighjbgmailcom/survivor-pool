@@ -27,12 +27,16 @@ window.loadCsvPool = async function (base) {
     if (!res.ok) throw new Error(`${base}${name} not found`);
     return parseCsv(await res.text());
   }
+  async function getOptional(name) { try { return await get(name); } catch { return []; } }
   const yes = (v) => /^(y|yes|true|x|1)$/i.test(v || '');
   const int = (v) => (v === '' || v == null || isNaN(+v) ? null : parseInt(v, 10));
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
 
   const [setRows, castRows, epRows, catRows, evRows, playerRows] = await Promise.all(
     ['settings.csv', 'castaways.csv', 'episodes.csv', 'scoring.csv', 'events.csv', 'players.csv'].map(get));
+  // written by the scheduled GitHub job (tools/fetch_results.py) from Global TV's results page
+  const [offRows, metaRows] = await Promise.all([getOptional('official_points.csv'), getOptional('official_meta.csv')]);
+  const meta = Object.fromEntries(metaRows.map((r) => [r.key, r.value]));
 
   // settings
   const kv = Object.fromEntries(setRows.map((r) => [norm(r.setting), r.value]));
@@ -73,9 +77,40 @@ window.loadCsvPool = async function (base) {
     seen.add(key); events.push({ episode: ep, castaway_id: c.id, category_id: k.id });
   });
 
+  // official weekly totals from Global TV replace hand-entered events for those episodes
+  const official = {};
+  offRows.forEach((r) => {
+    const ep = int(r.episode); const c = findC(r.castaway, `Global TV results, episode ${r.episode}`);
+    if (ep == null || !c) return;
+    (official[ep] ||= {})[c.id] = int(r.points) || 0;
+  });
+  const offEps = Object.keys(official).map(Number).sort((a, b) => a - b);
+  offEps.forEach((n) => {
+    const e = episodes.find((x) => x.number === n);
+    if (e) e.is_scored = true; else episodes.push({ number: n, air_date: null, is_post_merge: false, is_scored: true });
+  });
+  episodes.sort((a, b) => a.number - b.number);
+  if (offEps.length) {
+    // Global only lists castaways still in the game (plus whoever left that week), so whoever is missing
+    // from the latest list went home in the last episode they appeared in.
+    const latest = offEps[offEps.length - 1];
+    castaways.forEach((c) => {
+      if (c.eliminated_episode != null) return;
+      const seenIn = offEps.filter((n) => official[n][c.id] != null);
+      if (!seenIn.length) c.eliminated_episode = offEps[0] - 1;
+      else if (official[latest][c.id] == null) c.eliminated_episode = seenIn[seenIn.length - 1];
+    });
+  }
+  for (let i = events.length - 1; i >= 0; i--) if (official[events[i].episode]) events.splice(i, 1);
+  if (meta.winner) { const w = findC(meta.winner, 'Global TV winner'); if (w && !castaways.some((c) => c.finish_place === 1)) w.finish_place = 1; }
+
   // points per castaway per published episode
   const cep = [];
   episodes.filter((e) => e.is_scored && e.number >= settings.first_scoring_episode).forEach((e) => {
+    if (official[e.number]) {
+      castaways.forEach((c) => { const v = official[e.number][c.id]; if (v != null) cep.push({ castaway_id: c.id, episode: e.number, survival: 0, bonus: v, official: true }); });
+      return;
+    }
     castaways.forEach((c) => {
       const mine = events.filter((v) => v.castaway_id === c.id && v.episode === e.number);
       const bonus = mine.reduce((s, v) => s + categories[v.category_id - 1].points, 0);
@@ -133,5 +168,5 @@ window.loadCsvPool = async function (base) {
   const kindOrder = { original: 0, merge: 1 };
   picks.sort((a, b) => a.display_name.localeCompare(b.display_name) || kindOrder[a.kind] - kindOrder[b.kind] || a.tribe.localeCompare(b.tribe) || a.castaway.localeCompare(b.castaway));
 
-  return { settings, tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, entries: board.map((b) => ({ id: b.entry_id, paid: b.paid })) };
+  return { settings, tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id, paid: b.paid })) };
 };
