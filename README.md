@@ -52,7 +52,7 @@ switches between them.
 
 **New season:** on the admin page, go to **Seasons → Start a new season**. That copies the settings and
 scoring categories, makes the new season current, and marks the old one finished. Then set the picks
-deadline (Settings), the cast (Castaways) and the players.
+deadline (Settings) and the players. The cast and tribes fill in automatically from Global's page once it's posted (you can also type them on the Castaways tab).
 
 **Adding an old season:** convert its two workbooks with
 `python3 tools/import_xlsx.py Players_Picks_S49.xlsx Cast_Points_S49.xlsx seasons/49 --season 49 --pool-name "Survivor 49 Fantasy Pool" --deadline 2025-09-24T20:00:00-04:00`
