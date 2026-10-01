@@ -4,7 +4,7 @@
 
 insert into public.settings (id, pool_name, season, entry_fee, etransfer_email, commissioner_name,
                              picks_deadline, first_scoring_episode, picks_per_tribe, max_tribe_size)
-values (1, 'Survivor 51 Fantasy Pool', 51, 10, 'markrirwin@hotmail.com', 'Mark Irwin',
+values (1, 'Survivor 51 Fantasy Pool', 51, 0, null, 'Mark Irwin',
         '2026-09-30 20:00:00-04', 2, 4, 6)
 on conflict (id) do nothing;
 

@@ -98,7 +98,7 @@
     const p = parseCsv(pl); const head = p[0];
     S.players = p.slice(1).map((r) => {
       const o = Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()]));
-      return { player: o.player, paid: /^(y|yes|true|x|1)$/i.test(o.paid), mvp: o.mvp, picks: head.filter((h) => /^pick\d+$/.test(h)).map((h) => o[h]).filter(Boolean), merge_pick: o.merge_pick || '', swap_out: o.swap_out || '' };
+      return { player: o.player, mvp: o.mvp, picks: head.filter((h) => /^pick\d+$/.test(h)).map((h) => o[h]).filter(Boolean), merge_pick: o.merge_pick || '', swap_out: o.swap_out || '' };
     });
     const es = editingSeason();
     $('#sub').textContent = `Editing ${es?.name || setting('Pool name')}${es?.status === 'finished' ? ' (finished)' : ''}`;
@@ -110,8 +110,8 @@
 
   const savePlayers = (msg) => {
     const n = Math.max(perTribe() * tribes().length, ...S.players.map((p) => p.picks.length));
-    const head = ['player', 'paid', 'mvp', ...Array.from({ length: n }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out'];
-    const rows = S.players.map((p) => [p.player, p.paid ? 'yes' : '', p.mvp, ...Array.from({ length: n }, (_, i) => p.picks[i] || ''), p.merge_pick, p.swap_out]);
+    const head = ['player', 'mvp', ...Array.from({ length: n }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out'];
+    const rows = S.players.map((p) => [p.player, p.mvp, ...Array.from({ length: n }, (_, i) => p.picks[i] || ''), p.merge_pick, p.swap_out]);
     return writeFile(`${S.folder}/players.csv`, toCsv([head, ...rows]), msg);
   };
   const saveSettings = () => writeFile(`${S.folder}/settings.csv`, toCsv([['setting', 'value'], ...S.settings.map((s) => [s.key, s.value])]), 'Update pool settings');
@@ -207,13 +207,12 @@
     const list = S.players.map((p, i) => {
       const bad = problems(p);
       return `<tr><td><b>${esc(p.player)}</b>${bad.length ? `<div class="small" style="color:var(--bad)">⚠ ${esc(bad.join(', '))}</div>` : ''}</td>
-        <td>${p.paid ? '<span class="pill good">paid</span>' : '<span class="pill bad">unpaid</span>'}</td>
         <td class="small">⭐ ${esc(p.mvp)}<br>${esc(p.picks.filter((x) => norm(x) !== norm(p.mvp)).join(', '))}${p.merge_pick ? `<br>➕ ${esc(p.merge_pick)}${p.swap_out ? ` (swapped out ${esc(p.swap_out)})` : ''}` : ''}</td>
         <td><button class="btn small" data-e="${i}">Edit</button></td></tr>`;
     }).join('');
     main.innerHTML = `${S.edit != null ? '<div id="editor"></div>' : ''}
       <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Players (${S.players.length})</h2><button class="btn primary" id="add">Add a player</button></div>
-      <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Player</th><th>Paid</th><th>Picks</th><th></th></tr></thead><tbody>${list || '<tr><td colspan="4" class="muted">No players yet.</td></tr>'}</tbody></table></div>
+      <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Player</th><th>Picks</th><th></th></tr></thead><tbody>${list || '<tr><td colspan="3" class="muted">No players yet.</td></tr>'}</tbody></table></div>
       <p class="small muted">Names only here; the site and its files are public, so don't add email addresses.</p></div>`;
     $('#add').onclick = () => { S.edit = -1; players(); };
     $$('[data-e]').forEach((b) => (b.onclick = () => { S.edit = +b.dataset.e; players(); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
@@ -221,14 +220,13 @@
   }
 
   function editor() {
-    const orig = S.edit >= 0 ? S.players[S.edit] : { player: '', paid: false, mvp: '', picks: [], merge_pick: '', swap_out: '' };
+    const orig = S.edit >= 0 ? S.players[S.edit] : { player: '', mvp: '', picks: [], merge_pick: '', swap_out: '' };
     const p = { ...orig, picks: orig.picks.map(canon), mvp: canon(orig.mvp), merge_pick: canon(orig.merge_pick), swap_out: canon(orig.swap_out) };
     const per = perTribe(); const box = $('#editor');
     const draw = () => {
       const counts = Object.fromEntries(tribes().map((t) => [t, S.castaways.filter((c) => c.tribe === t && p.picks.includes(c.name)).length]));
       box.innerHTML = `<div class="card"><h2>${S.edit >= 0 ? 'Edit ' + esc(orig.player) : 'New player'}</h2>
-        <div class="row"><label>Name (as shown on the leaderboard) <input id="nm" value="${esc(p.player)}" maxlength="40"></label>
-        <label style="flex:0 0 auto;margin-top:18px"><input type="checkbox" id="pd" ${p.paid ? 'checked' : ''}> Paid</label></div>
+        <div class="row"><label>Name (as shown on the leaderboard) <input id="nm" value="${esc(p.player)}" maxlength="40"></label></div>
         <p class="help">Pick ${per} from each tribe.</p>
         <div class="pick-grid">${tribes().map((t) => `<div><div class="row" style="justify-content:space-between"><b>${esc(t)}</b><span class="pill ${counts[t] === per ? 'good' : ''}">${counts[t]} / ${per}</span></div>
           ${S.castaways.filter((c) => c.tribe === t).map((c) => `<label class="cb ${p.picks.includes(c.name) ? 'on' : ''}"><input type="checkbox" data-c="${esc(c.name)}" ${p.picks.includes(c.name) ? 'checked' : ''}>${esc(c.name)}</label>`).join('')}</div>`).join('')}</div>
@@ -238,7 +236,7 @@
           <label>Swap out <span class="help">(only if the tribe is full)</span><select id="sw"><option value="">— none —</option>${p.picks.map((x) => `<option ${x === p.swap_out ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
         </div>
         <div class="row"><button class="btn primary" id="sv">Save player</button><button class="btn" id="cx">Cancel</button>${S.edit >= 0 ? '<button class="btn danger" id="rm" style="margin-left:auto">Delete player</button>' : ''}</div></div>`;
-      const keep = () => { p.player = $('#nm', box).value; p.paid = $('#pd', box).checked; p.mvp = $('#mvp', box).value; p.merge_pick = $('#mg', box).value; p.swap_out = $('#sw', box).value; };
+      const keep = () => { p.player = $('#nm', box).value; p.mvp = $('#mvp', box).value; p.merge_pick = $('#mg', box).value; p.swap_out = $('#sw', box).value; };
       $$('[data-c]', box).forEach((cb) => (cb.onchange = () => {
         keep(); const n = cb.dataset.c; const t = S.castaways.find((c) => c.name === n).tribe;
         if (cb.checked) { if (counts[t] >= per) { cb.checked = false; return toast(`Already ${per} from ${t}. Untick one first.`); } p.picks.push(n); }
@@ -273,8 +271,6 @@
   const SETTING_HELP = {
     'Pool name': ['text', 'Shown at the top of the site.'],
     'Season': ['number', ''],
-    'Entry fee': ['number', 'Dollars per player.'],
-    'E-transfer email': ['text', 'Where players send their entry fee.'],
     'Commissioner': ['text', ''],
     'Picks deadline': ['datetime', 'After this, picks are locked and shown to everyone.'],
     'First scoring episode': ['number', 'Points count from this episode on.'],
@@ -290,6 +286,7 @@
 
   function settings() {
     const rows = S.settings.map((s, i) => {
+      if (/^(entry fee|e-?transfer email)$/i.test(s.key)) return '';
       const [type, help] = SETTING_HELP[s.key] || (s.key.startsWith('Tribe color') ? ['color', ''] : ['text', '']);
       let input;
       if (type === 'textarea') input = `<textarea data-i="${i}" rows="2">${esc(s.value)}</textarea>`;
@@ -373,7 +370,7 @@
           'settings.csv': toCsv([['setting', 'value'], ...set.map((x) => [x.key, x.value])]),
           'scoring.csv': scoring,
           'castaways.csv': toCsv([['name', 'tribe', 'out_episode', 'finish', 'aliases']]),
-          'players.csv': toCsv([['player', 'paid', 'mvp', ...Array.from({ length: per * nt }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out']]),
+          'players.csv': toCsv([['player', 'mvp', ...Array.from({ length: per * nt }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out']]),
           'episodes.csv': toCsv([['episode', 'air_date', 'post_merge', 'published'], ...Array.from({ length: 13 }, (_, i) => [i + 1, '', '', ''])]),
           'events.csv': toCsv([['episode', 'castaway', 'event']]),
           'official_points.csv': toCsv([['episode', 'castaway', 'points']]),

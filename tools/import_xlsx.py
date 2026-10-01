@@ -1,5 +1,5 @@
 """Convert Mark's season workbooks (Players_Picks_Sxx.xlsx + Cast_Points_Sxx.xlsx) into the site's CSV files.
-Strips email addresses, notes and app keys so nothing private lands in the public repo.
+Strips email addresses, payment notes and app keys so nothing private lands in the public repo.
 Usage: python3 tools/import_xlsx.py Players_Picks_S49.xlsx Cast_Points_S49.xlsx seasons/49 --season 49 --pool-name "Survivor 49 Fantasy Pool" --deadline 2025-09-24T20:00:00-04:00
 Then add the season to seasons/seasons.csv (status "finished").
 """
@@ -70,17 +70,15 @@ out = []
 for r in players[6:]:
     name = r[0]
     if not name: continue
-    paid = r[pix["Paid?"]]
     p = picks.get(name)
     if not p: print("no picks for", name, file=sys.stderr); continue
-    out.append([name, "yes" if paid not in (None, "", "N", "n") else "", p["mvp"]] + p["picks"] + [""] * (n - len(p["picks"])) + [p["merge"], p["swap"]])
-w("players.csv", ["player", "paid", "mvp"] + [f"pick{i}" for i in range(1, n + 1)] + ["merge_pick", "swap_out"], out)
+    out.append([name, p["mvp"]] + p["picks"] + [""] * (n - len(p["picks"])) + [p["merge"], p["swap"]])
+w("players.csv", ["player", "mvp"] + [f"pick{i}" for i in range(1, n + 1)] + ["merge_pick", "swap_out"], out)
 
 tribes = list(dict.fromkeys(c[1] for c in castaways))
 colors = dict(zip(tribes, a.colors.split(","))) if a.colors else {}
 w("settings.csv", ["setting", "value"], [
-    ("Pool name", a.pool_name), ("Season", a.season), ("Entry fee", "10"), ("E-transfer email", "markrirwin@hotmail.com"),
-    ("Commissioner", "Mark Irwin"), ("Picks deadline", a.deadline), ("First scoring episode", "2"),
+    ("Pool name", a.pool_name), ("Season", a.season), ("Commissioner", "Mark Irwin"), ("Picks deadline", a.deadline), ("First scoring episode", "2"),
     ("Picks per tribe", a.picks_per_tribe), ("Max tribe size", a.max_tribe_size), ("Merge episode", a.merge_episode),
     ("Survival points", "entered"), ("Results page", f"https://www.globaltv.com/survivor-{a.season}-fantasy-tribe/"),
 ] + [(f"Tribe color {t}", c) for t, c in colors.items()] + [("Announcement", a.announcement)])

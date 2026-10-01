@@ -53,8 +53,8 @@ window.loadCsvPool = async function (base) {
   // settings
   const kv = Object.fromEntries(setRows.map((r) => [norm(r.setting), r.value]));
   const settings = {
-    pool_name: kv.poolname || 'Survivor Fantasy Pool', season: int(kv.season) || '', entry_fee: +kv.entryfee || 0,
-    etransfer_email: kv.etransferemail || null, commissioner_name: kv.commissioner || null,
+    pool_name: kv.poolname || 'Survivor Fantasy Pool', season: int(kv.season) || '',
+    commissioner_name: kv.commissioner || null,
     picks_deadline: kv.picksdeadline || new Date(0).toISOString(), first_scoring_episode: int(kv.firstscoringepisode) || 1,
     picks_per_tribe: int(kv.pickspertribe) || 4, max_tribe_size: int(kv.maxtribesize) || 8,
     merge_episode: int(kv.mergeepisode), merge_window_open: false,
@@ -173,12 +173,12 @@ window.loadCsvPool = async function (base) {
         start_episode: p.start, end_episode: p.end, eliminated_episode: p.c.eliminated_episode, points: weeklyPts + finale + mvpBonus });
     });
     Object.entries(wk).forEach(([e, v]) => weekly.push({ entry_id: id, episode: +e, points: v }));
-    board.push({ entry_id: id, display_name: r.player, paid: yes(r.paid), total, last_episode: lastEp || null, last_episode_points: wk[lastEp] || 0,
+    board.push({ entry_id: id, display_name: r.player, total, last_episode: lastEp || null, last_episode_points: wk[lastEp] || 0,
       still_in: mine.filter((p) => p.end == null && p.c.eliminated_episode == null).length, mvp: mvp?.name || null });
   });
   board.sort((a, b) => b.total - a.total || a.display_name.localeCompare(b.display_name));
   const kindOrder = { original: 0, merge: 1 };
   picks.sort((a, b) => a.display_name.localeCompare(b.display_name) || kindOrder[a.kind] - kindOrder[b.kind] || a.tribe.localeCompare(b.tribe) || a.castaway.localeCompare(b.castaway));
 
-  return { settings, tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id, paid: b.paid })) };
+  return { settings, tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id })) };
 };

@@ -11,7 +11,7 @@ A leaderboard website for our office Survivor pool. Scoring follows the
 
 | What | Who / how |
 |---|---|
-| Settings, castaways, players, picks, paid, merge picks | Organizers, on the **admin page** |
+| Settings, castaways, players, picks, merge picks | Organizers, on the **admin page** |
 | Weekly scores | **Automatic.** A scheduled GitHub job reads Global TV's results page every Thursday evening (and once a day as a catch-up) |
 | Who's out, the winner, the MVP bonus | Automatic, worked out from Global's results |
 

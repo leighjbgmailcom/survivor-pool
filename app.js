@@ -130,7 +130,7 @@
     S.scored = S.episodes.filter((e) => e.is_scored && e.number >= S.settings.first_scoring_episode);
     document.title = S.settings.pool_name;
     $('#pool-name').textContent = S.settings.pool_name;
-    $('#pool-sub').textContent = `Season ${S.settings.season} · $${S.settings.entry_fee} entry · winner takes the pot`;
+    $('#pool-sub').textContent = `Season ${S.settings.season} · most points at the end of the season wins`;
     $('#admin-tab').hidden = !S.isAdmin;
     const past = CSV && S.season && S.currentSeason && S.season.season !== S.currentSeason.season;
     const a = $('#announce');
@@ -176,13 +176,12 @@
   // ---------------- Standings ----------------
   function standings() {
     const el = $('#standings');
-    const paid = S.isAdmin ? S.entries.filter((e) => e.paid).length : S.board.filter((b) => b.paid).length;
     const lastEp = S.scored.length ? S.scored[S.scored.length - 1].number : null;
     const meId = S.me?.id;
 
     let html = `<div class="stats">
       <div class="stat"><div class="k">Players</div><div class="v">${S.board.length}</div></div>
-      <div class="stat"><div class="k">Pot</div><div class="v">$${paid * Number(S.settings.entry_fee)}</div></div>
+      <div class="stat"><div class="k">Castaways left</div><div class="v">${S.castaways.filter((c) => c.eliminated_episode == null).length}</div></div>
       <div class="stat"><div class="k">Scored through</div><div class="v">${lastEp ? 'Ep ' + lastEp : '—'}</div></div>
       <div class="stat"><div class="k">${S.locked ? 'Picks' : 'Picks due'}</div><div class="v" style="font-size:${S.locked ? 32 : 20}px">${S.locked ? 'Locked' : esc(fmtDate(S.settings.picks_deadline))}</div></div>
     </div>`;
@@ -192,10 +191,10 @@
     }
     if (!S.locked && CSV) {
       html += `<div class="card"><h3>Picks are open</h3><p>Email your 8 picks and MVP to ${esc(S.settings.commissioner_name || 'the commissioner')} before <b>${esc(fmtDate(S.settings.picks_deadline))}</b>.</p>
-        ${S.settings.etransfer_email ? `<p class="muted">E-transfer your $${S.settings.entry_fee} to <b>${esc(S.settings.etransfer_email)}</b>.</p>` : ''}</div>`;
+</div>`;
     } else if (!S.locked) {
       html += `<div class="card"><h3>Picks are open</h3><p>Everyone's picks stay hidden until the deadline (${esc(fmtDate(S.settings.picks_deadline))}). ${S.me ? 'Yours are in — you can still change them on <b>My Tribe</b>.' : 'Head to <b>My Tribe</b> to make yours.'}</p>
-        ${S.settings.etransfer_email ? `<p class="muted">E-transfer your $${S.settings.entry_fee} to <b>${esc(S.settings.etransfer_email)}</b>.</p>` : ''}</div>`;
+</div>`;
     }
 
     if (S.official?.episodes?.length) {
@@ -211,7 +210,7 @@
       const list = picksFor(b.entry_id);
       return `<tr class="click ${b.entry_id === meId ? 'me' : ''}" data-id="${b.entry_id}">
         <td class="rank ${rank === 1 && b.total > 0 ? 'r1' : ''}">${rank}</td>
-        <td><b>${esc(b.display_name)}</b>${b.paid ? '' : ' <span class="pill bad" title="Not marked paid yet">unpaid</span>'}<div class="small muted">MVP: ${esc(b.mvp || '—')}</div></td>
+        <td><b>${esc(b.display_name)}</b><div class="small muted">MVP: ${esc(b.mvp || '—')}</div></td>
         <td class="num">${b.still_in}</td>
         <td class="num">${lastEp ? (b.last_episode_points > 0 ? '+' : '') + b.last_episode_points : '—'}</td>
         <td class="num total">${b.total}</td></tr>
@@ -279,7 +278,7 @@
     if (CSV) {
       const pick = S.csvMe || '';
       if (!S.board.length) { el.innerHTML = '<div class="card muted">No players yet.</div>'; return; }
-      S.me = S.board.find((b) => b.entry_id === pick) ? { id: pick, display_name: S.board.find((b) => b.entry_id === pick).display_name, paid: S.board.find((b) => b.entry_id === pick).paid } : null;
+      S.me = S.board.find((b) => b.entry_id === pick) ? { id: pick, display_name: S.board.find((b) => b.entry_id === pick).display_name } : null;
       const sel = `<div class="card"><label>Whose tribe? <select id="csv-me"><option value="">— choose a player —</option>${S.board.map((b) => `<option value="${b.entry_id}" ${b.entry_id === pick ? 'selected' : ''}>${esc(b.display_name)}</option>`).join('')}</select></label></div>`;
       if (!S.me) { el.innerHTML = sel; } else { lockedTribe(el, picksFor(S.me.id)); el.insertAdjacentHTML('afterbegin', sel); }
       $('#csv-me').onchange = (e) => { S.csvMe = e.target.value; try { localStorage.setItem('pool-me', S.csvMe); } catch {} mytribe(); };
@@ -288,8 +287,7 @@
     const mine = S.me ? picksFor(S.me.id) : [];
     if (!S.locked) {
       el.innerHTML = `<div class="card"><h2>${S.me ? 'Your picks' : 'Make your picks'}</h2>
-        <p class="muted">Deadline: <b>${esc(fmtDate(S.settings.picks_deadline))}</b>. You can change your picks until then.
-        ${S.settings.etransfer_email ? ` Don't forget to e-transfer $${S.settings.entry_fee} to <b>${esc(S.settings.etransfer_email)}</b>.` : ''}</p>
+        <p class="muted">Deadline: <b>${esc(fmtDate(S.settings.picks_deadline))}</b>. You can change your picks until then.</p>
         <div id="pk"></div></div>`;
       const orig = mine.filter((p) => p.kind === 'original');
       picker($('#pk'), {
@@ -314,7 +312,7 @@
       <div class="stat"><div class="k">Rank</div><div class="v">${rank} <span class="small muted">of ${S.board.length}</span></div></div>
       <div class="stat"><div class="k">Total</div><div class="v">${row?.total ?? 0}</div></div>
       <div class="stat"><div class="k">Still in</div><div class="v">${row?.still_in ?? 0}</div></div>
-      <div class="stat"><div class="k">Paid</div><div class="v">${S.me.paid ? 'Yes' : 'Not yet'}</div></div></div>`;
+      <div class="stat"><div class="k">MVP</div><div class="v" style="font-size:24px">${esc(row?.mvp || '—')}</div></div></div>`;
 
     html += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(S.me.display_name)}'s tribe</h2>
       ${CSV ? '' : '<button class="btn small" id="rename">Rename</button>'}</div>
@@ -399,19 +397,18 @@
           const d = x.season === S.season.season ? S : await window.loadCsvPool(`seasons/${x.season}/`);
           const champ = d.board[0]; const ties = d.board.filter((b) => champ && b.total === champ.total);
           const ss = d.castaways.find((c) => c.finish_place === 1);
-          const paid = d.board.filter((b) => b.paid).length;
-          return { ...x, players: d.board.length, pot: paid * Number(d.settings.entry_fee || 0), champs: champ ? ties.map((b) => b.display_name) : [], top: champ?.total, ss: ss?.name };
+          return { ...x, players: d.board.length, champs: champ ? ties.map((b) => b.display_name) : [], top: champ?.total, ss: ss?.name };
         } catch (e) { return { ...x, error: true }; }
       }));
     }
     if (S.tab !== 'seasons') return;
     el.innerHTML = `<div class="card"><h2>Seasons</h2><div class="scroll"><table>
-      <thead><tr><th>Season</th><th>Pool winner</th><th class="num">Points</th><th>Sole Survivor</th><th class="num">Players</th><th class="num">Pot</th><th></th></tr></thead><tbody>
-      ${S.history.map((h) => h.error ? `<tr><td><b>${esc(h.name)}</b></td><td colspan="6" class="muted">Couldn't load this season's files.</td></tr>` : `<tr>
+      <thead><tr><th>Season</th><th>Pool winner</th><th class="num">Points</th><th>Sole Survivor</th><th class="num">Players</th><th></th></tr></thead><tbody>
+      ${S.history.map((h) => h.error ? `<tr><td><b>${esc(h.name)}</b></td><td colspan="5" class="muted">Couldn't load this season's files.</td></tr>` : `<tr>
         <td><b>${esc(h.name)}</b>${h.status === 'current' ? ' <span class="pill good">now</span>' : ''}</td>
         <td>${h.status === 'finished' && h.champs.length ? '🏆 ' + esc(h.champs.join(' & ')) : h.champs.length ? `<span class="muted">Leading: ${esc(h.champs.join(' & '))}</span>` : '<span class="muted">—</span>'}</td>
         <td class="num">${h.top ?? '—'}</td><td>${esc(h.ss || (h.status === 'finished' ? '' : 'TBD'))}</td>
-        <td class="num">${h.players}</td><td class="num">$${h.pot}</td>
+        <td class="num">${h.players}</td>
         <td><a class="btn small" href="?season=${encodeURIComponent(h.season)}#standings" style="text-decoration:none">View</a></td></tr>`).join('')}
       </tbody></table></div><p class="small muted">Older seasons get added as we find their spreadsheets.</p></div>`;
   }
@@ -420,7 +417,7 @@
   function rules() {
     const s = S.settings; const by = (p) => S.categories.filter((c) => c.points === p);
     $('#rules').innerHTML = `<div class="card rules"><h2>How it works</h2><ol>
-      <li><b>$${s.entry_fee} to play.</b> ${s.etransfer_email ? `E-transfer to <b>${esc(s.etransfer_email)}</b>.` : ''} Highest score in the pool wins the whole pot.</li>
+      <li>The player with the most points at the end of the season wins the pool.</li>
       <li>Pick <b>${s.picks_per_tribe}</b> castaways from each tribe (${s.picks_per_tribe * S.tribes.length} total) before <b>${esc(fmtDate(s.picks_deadline))}</b>.</li>
       <li>Choose one of your picks as your <b>MVP</b> — your call for Sole Survivor.</li>
       <li>Points start with <b>episode ${s.first_scoring_episode}</b>.</li>
@@ -462,9 +459,8 @@
       <p class="small muted">Tip: add events and eliminations first, check them, then tick “Published” so everyone sees the episode at once.</p>
     </div>
 
-    <div class="card"><h2>Players</h2><div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Picks</th><th>Paid</th><th></th></tr></thead><tbody>
+    <div class="card"><h2>Players</h2><div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Picks</th><th></th></tr></thead><tbody>
       ${S.entries.map((en) => { const n = picksFor(en.id).length; return `<tr><td>${esc(en.display_name)}</td><td class="small">${esc(en.email)}</td><td>${n}</td>
-        <td><input type="checkbox" class="a-paid" data-id="${en.id}" ${en.paid ? 'checked' : ''}></td>
         <td class="row"><button class="btn small" data-edit="${en.id}">Edit picks</button>${s.merge_episode != null ? `<button class="btn small" data-merge="${en.id}">Merge pick</button>` : ''}<button class="btn small danger" data-rm="${en.id}">Delete</button></td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">No players yet.</td></tr>'}
     </tbody></table></div>
     <button class="btn primary" id="a-new" style="margin-top:10px">Add a player's picks</button>
@@ -472,7 +468,7 @@
 
     <div class="card"><h2>Pool settings</h2><form id="a-set">
       <div class="row"><label>Pool name <input name="pool_name" value="${esc(s.pool_name)}"></label><label>Season <input name="season" type="number" value="${s.season}"></label></div>
-      <div class="row"><label>Entry fee ($) <input name="entry_fee" type="number" step="1" value="${s.entry_fee}"></label><label>E-transfer email <input name="etransfer_email" value="${esc(s.etransfer_email || '')}"></label><label>Commissioner <input name="commissioner_name" value="${esc(s.commissioner_name || '')}"></label></div>
+      <div class="row"><label>Commissioner <input name="commissioner_name" value="${esc(s.commissioner_name || '')}"></label></div>
       <div class="row"><label>Picks deadline <input name="picks_deadline" type="datetime-local" value="${local(s.picks_deadline)}"></label><label>First scoring episode <input name="first_scoring_episode" type="number" value="${s.first_scoring_episode}"></label></div>
       <div class="row"><label>Picks per tribe <input name="picks_per_tribe" type="number" value="${s.picks_per_tribe}"></label><label>Max castaways on a tribe <input name="max_tribe_size" type="number" value="${s.max_tribe_size}"></label></div>
       <div class="row"><label>Merge happened in episode <input name="merge_episode" type="number" value="${s.merge_episode ?? ''}" placeholder="leave blank until the merge"></label>
@@ -495,7 +491,6 @@
     $('#a-add').onclick = () => act(() => q(sb.from('events').insert({ episode: S.adminEp, castaway_id: +$('#a-c').value, category_id: +$('#a-cat').value })), 'Event added');
     $$('[data-del]', el).forEach((b) => (b.onclick = () => { const [c, k] = b.dataset.del.split(':'); act(() => q(sb.from('events').delete().match({ episode: S.adminEp, castaway_id: +c, category_id: +k }))); }));
     $$('.a-elim', el).forEach((b) => (b.onchange = () => act(() => q(sb.from('castaways').update({ eliminated_episode: b.checked ? S.adminEp : null }).eq('id', +b.value)), b.checked ? 'Marked out' : 'Back in')));
-    $$('.a-paid', el).forEach((b) => (b.onchange = () => act(() => q(sb.from('entries').update({ paid: b.checked }).eq('id', b.dataset.id)))));
     $$('[data-rm]', el).forEach((b) => (b.onclick = () => { const en = S.entries.find((x) => x.id === b.dataset.rm); if (confirm(`Delete ${en.display_name}'s entry and picks?`)) act(() => q(sb.from('entries').delete().eq('id', en.id)), 'Deleted'); }));
     $$('.a-out', el).forEach((i) => (i.onchange = () => act(() => q(sb.from('castaways').update({ eliminated_episode: i.value ? +i.value : null }).eq('id', +i.dataset.id)), 'Saved')));
     $$('.a-fin', el).forEach((i) => (i.onchange = () => act(() => q(sb.from('castaways').update({ finish_place: i.value ? +i.value : null }).eq('id', +i.dataset.id)), 'Saved')));
@@ -521,7 +516,7 @@
     $('#a-set').onsubmit = (e) => {
       e.preventDefault(); const f = new FormData(e.target); const num = (k) => (f.get(k) === '' ? null : +f.get(k));
       act(() => q(sb.from('settings').update({
-        pool_name: f.get('pool_name'), season: num('season'), entry_fee: num('entry_fee'), etransfer_email: f.get('etransfer_email') || null,
+        pool_name: f.get('pool_name'), season: num('season'), 
         commissioner_name: f.get('commissioner_name') || null, picks_deadline: new Date(f.get('picks_deadline')).toISOString(),
         first_scoring_episode: num('first_scoring_episode'), picks_per_tribe: num('picks_per_tribe'), max_tribe_size: num('max_tribe_size'),
         merge_episode: num('merge_episode'), merge_window_open: f.get('merge_window_open') === 'on', announcement: f.get('announcement') || null,
