@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Survivor Fantasy Pool</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <div class="brand"><span class="torch">🔥</span><div><h1 id="pool-name">Survivor Fantasy Pool</h1><div class="sub" id="pool-sub"></div></div></div>
+      <div class="who" id="who"></div>
+    </div>
+    <nav class="wrap tabs" id="tabs" hidden>
+      <button data-tab="standings" class="on">Standings</button>
+      <button data-tab="mytribe">My Tribe</button>
+      <button data-tab="castaways">Castaways</button>
+      <button data-tab="rules">Rules</button>
+      <button data-tab="admin" id="admin-tab" hidden>Admin</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <div id="announce" class="announce" hidden></div>
+
+    <!-- Login -->
+    <section id="login" class="card narrow" hidden>
+      <h2>Sign in to play</h2>
+      <p class="muted">Use the email address you gave the commissioner. First time? Choose "Create account".</p>
+      <form id="login-form">
+        <label>Email <input type="email" id="login-email" required autocomplete="email"></label>
+        <label>Password <input type="password" id="login-pass" required minlength="6" autocomplete="current-password"></label>
+        <div class="row">
+          <button type="submit" class="btn primary">Sign in</button>
+          <button type="button" class="btn" id="signup-btn">Create account</button>
+        </div>
+        <button type="button" class="linkish" id="forgot-btn">Forgot password?</button>
+      </form>
+      <p id="login-msg" class="msg"></p>
+    </section>
+
+    <section id="reset" class="card narrow" hidden>
+      <h2>Set a new password</h2>
+      <form id="reset-form">
+        <label>New password <input type="password" id="reset-pass" required minlength="6" autocomplete="new-password"></label>
+        <button class="btn primary">Save password</button>
+      </form>
+      <p id="reset-msg" class="msg"></p>
+    </section>
+
+    <section id="standings" class="tab" hidden></section>
+    <section id="mytribe" class="tab" hidden></section>
+    <section id="castaways" class="tab" hidden></section>
+    <section id="rules" class="tab" hidden></section>
+    <section id="admin" class="tab" hidden></section>
+
+    <section id="setup-needed" class="card narrow" hidden>
+      <h2>Almost there</h2>
+      <p>Add your Supabase project URL and publishable key to <code>config.js</code>, then reload.</p>
+    </section>
+  </main>
+
+  <footer class="wrap foot">Scoring follows the Global TV Survivor Fantasy Tribe rules. For fun among friends.</footer>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="csv-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
