@@ -178,7 +178,7 @@
         ${S.settings.etransfer_email ? `<p class="muted">E-transfer your $${S.settings.entry_fee} to <b>${esc(S.settings.etransfer_email)}</b>.</p>` : ''}</div>`;
     }
 
-    if (!S.board.length) { el.innerHTML = html + `<div class="card muted">No entries yet.</div>`; return; }
+    if (!S.board.length) { el.innerHTML = html + `<div class="card muted">No entries yet.${CSV && !DEMO ? ' Want to see how it looks mid-season? <a href="?demo">Open the demo</a>.' : ''}</div>`; return; }
 
     let rank = 0, prev = null;
     const rows = S.board.map((b, i) => {
