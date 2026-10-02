@@ -11,7 +11,7 @@
   const params = new URLSearchParams(location.search);
   const sb = CSV ? null : window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
 
-  const S = { tab: location.hash.slice(1) || 'standings', open: new Set(), adminEp: null };
+  const S = { tab: location.hash.slice(1) || 'standings', open: new Set(), openCast: new Set(), adminEp: null };
   try { S.csvMe = localStorage.getItem('pool-me') || ''; } catch { S.csvMe = ''; }
 
   function toast(text, err = false) {
@@ -378,13 +378,27 @@
     const el = $('#castaways');
     const pickCount = {}; S.picks.filter((p) => p.end_episode == null).forEach((p) => (pickCount[p.castaway_id] = (pickCount[p.castaway_id] || 0) + 1));
     const showPop = CSV || S.locked || S.isAdmin;
+    const cols = 2 + (showPop ? 1 : 0) + S.scored.length;
+    const rankOf = (id) => { const b = S.board.find((x) => x.entry_id === id); return b ? S.board.filter((x) => x.total > b.total).length + 1 : null; };
+    const pickers = (c) => {
+      const list = S.picks.filter((p) => p.castaway_id === c.id)
+        .sort((a, b) => (b.is_mvp - a.is_mvp) || (a.end_episode != null) - (b.end_episode != null) || a.display_name.localeCompare(b.display_name));
+      if (!list.length) return '<span class="muted">Nobody picked ' + esc(c.name) + '.</span>';
+      return `<div class="chips">${list.map((p) => {
+        const off = p.end_episode != null; const rank = rankOf(p.entry_id);
+        const title = [p.is_mvp ? 'MVP pick' : '', p.kind === 'merge' ? `Merge pick (from ep ${p.start_episode})` : '', off ? `Swapped out after ep ${p.end_episode}` : '', rank ? `Currently #${rank}` : ''].filter(Boolean).join(' · ');
+        return `<span class="chip ${off ? 'out' : ''} ${p.is_mvp ? 'mvp' : ''}" title="${esc(title)}">${p.is_mvp ? '⭐ ' : ''}${p.kind === 'merge' ? '➕ ' : ''}${esc(p.display_name)} <b>${p.points}</b></span>`;
+      }).join('')}</div>`;
+    };
     el.innerHTML = S.tribes.map((t) => `<div class="card"><div class="tribe-head" style="border-color:${esc(t.color)}"><h2 style="margin:0">${esc(t.name)}</h2></div>
       <div class="scroll"><table class="grid-pts"><thead><tr><th>Castaway</th>${showPop ? '<th title="How many players have them">Picked</th>' : ''}${S.scored.map((e) => `<th>Ep ${e.number}</th>`).join('')}<th>Total</th></tr></thead><tbody>
-      ${S.castaways.filter((c) => c.tribe === t.name).map((c) => `<tr><td>${esc(c.name)} ${c.finish_place ? `<span class="pill good">${['', '🏆 Winner', '2nd', '3rd'][c.finish_place]}</span>` : isOut(c) ? `<span class="pill bad">out ep ${c.eliminated_episode}</span>` : ''}</td>
+      ${S.castaways.filter((c) => c.tribe === t.name).map((c) => `<tr class="${showPop ? 'click' : ''}" data-c="${c.id}"><td>${esc(c.name)} ${c.finish_place ? `<span class="pill good">${['', '🏆 Winner', '2nd', '3rd'][c.finish_place]}</span>` : isOut(c) ? `<span class="pill bad">out ep ${c.eliminated_episode}</span>` : ''}</td>
         ${showPop ? `<td>${pickCount[c.id] || 0}</td>` : ''}
         ${S.scored.map((e) => { const r = S.cep.find((x) => x.castaway_id === c.id && x.episode === e.number); const v = r ? r.survival + r.bonus : null; return `<td class="${v ? '' : 'zero'}" title="${esc(eventTitle(c.id, e.number))}">${v ?? '·'}</td>`; }).join('')}
-        <td><b>${castawayTotal(c.id)}</b></td></tr>`).join('')}
-      </tbody></table></div></div>`).join('') + `<p class="small muted">Hover or tap a number to see the breakdown. Totals exclude finish bonuses.</p>`;
+        <td><b>${castawayTotal(c.id)}</b></td></tr>
+        ${showPop && S.openCast.has(c.id) ? `<tr class="detail"><td colspan="${cols}" style="text-align:left">${pickers(c)}</td></tr>` : ''}`).join('')}
+      </tbody></table></div></div>`).join('') + `<p class="small muted">${showPop ? 'Tap a castaway to see who picked them, with the points each player has earned from them. ⭐ = their MVP, ➕ = merge pick, struck-through = swapped out. ' : ''}Castaway totals exclude finish bonuses.</p>`;
+    if (showPop) $$('tr.click', el).forEach((tr) => (tr.onclick = () => { const id = +tr.dataset.c; S.openCast.has(id) ? S.openCast.delete(id) : S.openCast.add(id); castawaysTab(); }));
   }
 
   // ---------------- Seasons (hall of fame) ----------------
