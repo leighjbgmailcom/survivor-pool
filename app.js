@@ -333,13 +333,31 @@
     wireMerge(el, mine, (add, drop) => q(sb.rpc('submit_merge_pick', { p_add: add, p_drop: drop })));
   }
 
+  // What a castaway scored for in one episode: [{label, points}], or null when only the total is known
+  function itemsOf(cid, ep) {
+    const r = S.cep.find((x) => x.castaway_id === cid && x.episode === ep); if (!r) return null;
+    if (r.official) return r.items || null;
+    const items = [];
+    if (r.survival) items.push({ label: 'Survived the week', points: r.survival });
+    S.events.filter((e) => e.castaway_id === cid && e.episode === ep).forEach((e) => { const c = S.catById[e.category_id]; items.push({ label: c.label, points: c.points }); });
+    return items;
+  }
+
   function eventTitle(cid, ep) {
     const r = S.cep.find((x) => x.castaway_id === cid && x.episode === ep); if (!r) return '';
-    const lines = [];
-    if (r.survival) lines.push(`Survived: ${r.survival}`);
-    S.events.filter((e) => e.castaway_id === cid && e.episode === ep).forEach((e) => { const c = S.catById[e.category_id]; lines.push(`${c.label}: ${c.points}`); });
-    if (r.official) lines.push(`Global TV total: ${r.bonus}`);
-    return lines.join('\n');
+    const items = itemsOf(cid, ep);
+    if (!items) return `Global TV total: ${r.bonus}`;
+    return items.map((i) => `${i.label}: +${i.points}`).join('\n');
+  }
+
+  function pointsList(cid) {
+    const eps = S.scored.filter((e) => S.cep.some((x) => x.castaway_id === cid && x.episode === e.number));
+    if (!eps.length) return '';
+    return `<div class="bd">${eps.map((e) => {
+      const r = S.cep.find((x) => x.castaway_id === cid && x.episode === e.number); const items = itemsOf(cid, e.number); const total = r.survival + r.bonus;
+      return `<div class="bd-ep"><span class="bd-h">Ep ${e.number} <b>${total}</b></span>${items == null ? '<span class="muted">total only; see Global\'s chart for the details</span>'
+        : items.length ? items.map((i) => `<span class="bd-i">${esc(i.label)} <b>+${i.points}</b></span>`).join('') : '<span class="muted">no points</span>'}</div>`;
+    }).join('')}</div>`;
   }
 
   function mergePanel(mine) {
@@ -396,8 +414,8 @@
         ${showPop ? `<td>${pickCount[c.id] || 0}</td>` : ''}
         ${S.scored.map((e) => { const r = S.cep.find((x) => x.castaway_id === c.id && x.episode === e.number); const v = r ? r.survival + r.bonus : null; return `<td class="${v ? '' : 'zero'}" title="${esc(eventTitle(c.id, e.number))}">${v ?? '·'}</td>`; }).join('')}
         <td><b>${castawayTotal(c.id)}</b></td></tr>
-        ${showPop && S.openCast.has(c.id) ? `<tr class="detail"><td colspan="${cols}" style="text-align:left">${pickers(c)}</td></tr>` : ''}`).join('')}
-      </tbody></table></div></div>`).join('') + `<p class="small muted">${showPop ? 'Tap a castaway to see who picked them, with the points each player has earned from them. ⭐ = their MVP, ➕ = merge pick, struck-through = swapped out. ' : ''}Castaway totals exclude finish bonuses.</p>`;
+        ${showPop && S.openCast.has(c.id) ? `<tr class="detail"><td colspan="${cols}" style="text-align:left"><div class="bd-t">Picked by</div>${pickers(c)}${pointsList(c.id) ? `<div class="bd-t" style="margin-top:10px">Points</div>${pointsList(c.id)}` : ''}</td></tr>` : ''}`).join('')}
+      </tbody></table></div></div>`).join('') + `<p class="small muted">${showPop ? 'Tap a castaway to see what they scored points for and who picked them, with the points each player has earned from them. ⭐ = their MVP, ➕ = merge pick, struck-through = swapped out. ' : ''}Castaway totals exclude finish bonuses.</p>`;
     if (showPop) $$('tr.click', el).forEach((tr) => (tr.onclick = () => { const id = +tr.dataset.c; S.openCast.has(id) ? S.openCast.delete(id) : S.openCast.add(id); castawaysTab(); }));
   }
 

@@ -122,3 +122,8 @@ details summary { cursor: pointer; font-weight: 600; }
 .announce a { color: inherit; font-weight: 600; }
 
 main a { color: var(--accent); }
+
+.bd-t { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+.bd-ep { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; padding: 4px 0; font-size: 13px; }
+.bd-h { min-width: 62px; font-weight: 600; }
+.bd-i { border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; background: var(--panel); white-space: nowrap; }

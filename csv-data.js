@@ -47,7 +47,7 @@ window.loadCsvPool = async function (base) {
   const [setRows, castRows, epRows, catRows, evRows, playerRows] = await Promise.all(
     ['settings.csv', 'castaways.csv', 'episodes.csv', 'scoring.csv', 'events.csv', 'players.csv'].map(get));
   // written by the scheduled GitHub job (tools/fetch_results.py) from Global TV's results page
-  const [offRows, metaRows] = await Promise.all([getOptional('official_points.csv'), getOptional('official_meta.csv')]);
+  const [offRows, metaRows, bdRows] = await Promise.all([getOptional('official_points.csv'), getOptional('official_meta.csv'), getOptional('official_breakdown.csv')]);
   const meta = Object.fromEntries(metaRows.map((r) => [r.key, r.value]));
 
   // settings
@@ -96,6 +96,13 @@ window.loadCsvPool = async function (base) {
     if (ep == null || !c) return;
     (official[ep] ||= {})[c.id] = int(r.points) || 0;
   });
+  // what each castaway scored for, read from Global's results picture (only rows that add up to the total)
+  const itemsFor = {};
+  bdRows.forEach((r) => {
+    const ep = int(r.episode); const c = byName[norm(r.castaway)];
+    if (ep == null || !c || !r.item) return;
+    ((itemsFor[ep] ||= {})[c.id] ||= []).push({ label: r.item, points: int(r.points) || 0 });
+  });
   const offEps = Object.keys(official).map(Number).sort((a, b) => a - b);
   offEps.forEach((n) => {
     const e = episodes.find((x) => x.number === n);
@@ -120,7 +127,7 @@ window.loadCsvPool = async function (base) {
   const cep = [];
   episodes.filter((e) => e.is_scored && e.number >= settings.first_scoring_episode).forEach((e) => {
     if (official[e.number]) {
-      castaways.forEach((c) => { const v = official[e.number][c.id]; if (v != null) cep.push({ castaway_id: c.id, episode: e.number, survival: 0, bonus: v, official: true }); });
+      castaways.forEach((c) => { const v = official[e.number][c.id]; if (v != null) cep.push({ castaway_id: c.id, episode: e.number, survival: 0, bonus: v, official: true, items: itemsFor[e.number]?.[c.id]?.reduce((t, i) => t + i.points, 0) === v ? itemsFor[e.number][c.id] : null }); });
       return;
     }
     castaways.forEach((c) => {

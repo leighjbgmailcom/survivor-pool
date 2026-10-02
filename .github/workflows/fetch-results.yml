@@ -9,7 +9,7 @@ on:
     - cron: "17 10,13,17,21 * * *"  # daily catch-ups
   workflow_dispatch: {}         # "Run workflow" button on the Actions tab
   push:
-    paths: [".github/workflows/fetch-results.yml", "tools/fetch_results.py", "seasons/seasons.csv", "seasons/refresh.txt"]   # also runs right after a new season is started, or when an organizer clicks "Check for new scores now"
+    paths: [".github/workflows/fetch-results.yml", "tools/fetch_results.py", "tools/breakdown.py", "seasons/seasons.csv", "seasons/refresh.txt"]   # also runs right after a new season is started, or when an organizer clicks "Check for new scores now"
 
 permissions:
   contents: write
@@ -28,6 +28,13 @@ jobs:
           python-version: "3.12"
       - name: Fetch results from Global TV
         run: python tools/fetch_results.py
+      - name: Read the points breakdown from a new results picture
+        if: hashFiles('.need_ocr') != ''
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr
+          pip install -q pillow pytesseract
+          rm -f .need_ocr
+          python tools/fetch_results.py
       - name: Save any new scores
         run: |
           if git status --porcelain -- seasons | grep -q .; then

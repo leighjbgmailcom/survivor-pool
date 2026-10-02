@@ -7,9 +7,13 @@ and, at the finale, a tip naming the winner ("...if you chose Aubry as your MVP.
 For every folder given (default: every season marked "current" in seasons/seasons.csv) this reads the "Results page" URL from settings.csv and writes
   official_points.csv  episode,castaway,points
   official_meta.csv    key,value  (source, checked_at, episodes, winner)
-Only the files whose content actually changed are rewritten. Standard library only.
+  official_breakdown.csv  episode,castaway,item,points  (read from the results picture; see breakdown.py)
+Only the files whose content actually changed are rewritten.
 """
-import csv, datetime, html, io, os, re, sys, urllib.request
+import csv, datetime, hashlib, html, io, os, re, sys, urllib.parse, urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import breakdown
 
 UA = "Mozilla/5.0 (survivor-pool results fetcher; +https://github.com/leighjbgmailcom/survivor-pool)"
 
@@ -20,9 +24,16 @@ def fetch(url):
         return r.read().decode("utf-8", "replace")
 
 
+def fetch_bytes(url):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read()
+
+
 def parse(page):
     """Return ({episode: {castaway: points}}, winner or None)."""
     results = {}
+    parse.images = {}
     last_end = 0
     for m in re.finditer(r"<img\b[^>]*>", page, re.I | re.S):
         tag = m.group(0)
@@ -52,6 +63,10 @@ def parse(page):
             print(f"  episode {ep} appears twice on the page; keeping the first", file=sys.stderr)
             continue
         results[ep] = {name.strip(): int(p) for name, p in pairs}
+        srcs = re.findall(r'\b(?:data-lazy-src|data-src|src)\s*=\s*["\']([^"\']+)', tag, re.I)
+        pics = [u for u in srcs if re.search(r"\.(jpe?g|png|webp)(\?|$)", u, re.I) and not u.startswith("data:")]
+        if pics:
+            parse.images[ep] = html.unescape(pics[0])
     plain = html.unescape(re.sub(r"<[^>]+>", " ", page))
     w = re.search(r"if you (?:chose|picked|selected)\s+(.+?)\s+as your MVP", plain, re.I)
     return results, (w.group(1).strip() if w else None)
@@ -136,6 +151,39 @@ def fill_cast(folder, page):
     print(f"{folder}: filled in the cast from Global TV ({len(cast)} castaways, tribes {', '.join(dict.fromkeys(t for _, t, _ in cast))})")
 
 
+def read_breakdowns(folder, page_url, results, images, done):
+    """Read the points breakdown out of each new (or changed) results picture into official_breakdown.csv.
+    `done` remembers which pictures were already tried ("2=ab12cd 3=ef3456") so each is read once."""
+    path = os.path.join(folder, "official_breakdown.csv")
+    seen = dict(x.split("=", 1) for x in done.split() if "=" in x)
+    sig = {ep: hashlib.sha1((images.get(ep, "") + repr(sorted(results[ep].items()))).encode()).hexdigest()[:8] for ep in results}
+    todo = [ep for ep in sorted(results) if ep in images and seen.get(str(ep)) != sig[ep]]
+    if not todo:
+        if not os.path.exists(path):
+            write_if_changed(path, to_csv(["episode", "castaway", "item", "points"], []))
+        return done
+    if not breakdown.available():
+        open(".need_ocr", "w").write("1")   # tells the workflow to install the picture reader and run again
+        print(f"{folder}: episodes {todo} have a breakdown picture to read (picture reader not installed)")
+        return done
+    rows = [r for r in csv.reader(open(path, encoding="utf-8"))][1:] if os.path.exists(path) else []
+    scoring = os.path.join(folder, "scoring.csv")
+    extra = [r["event"] for r in csv.DictReader(open(scoring, encoding="utf-8"))] if os.path.exists(scoring) else []
+    for ep in todo:
+        try:
+            good, bad = breakdown.read_image(fetch_bytes(urllib.parse.urljoin(page_url, images[ep])), list(results[ep].items()), extra)
+        except Exception as e:
+            print(f"{folder}: episode {ep} picture could not be read: {e}", file=sys.stderr)
+            continue
+        rows = [r for r in rows if r and r[0] != str(ep)]
+        rows += [[str(ep), name, label, str(pts)] for name, items in good.items() for label, pts in items]
+        seen[str(ep)] = sig[ep]
+        print(f"{folder}: episode {ep} breakdown read for {len(good)} of {len(results[ep])} castaways" + (f"; not readable: {', '.join(bad)}" if bad else ""))
+    rows.sort(key=lambda r: int(r[0]))
+    write_if_changed(path, to_csv(["episode", "castaway", "item", "points"], rows))
+    return " ".join(f"{k}={v}" for k, v in sorted(seen.items(), key=lambda kv: int(kv[0])))
+
+
 def run(folder):
     settings = {r["setting"].strip().lower(): r["value"].strip() for r in csv.DictReader(open(os.path.join(folder, "settings.csv"), encoding="utf-8"))}
     url = settings.get("results page", "")
@@ -152,12 +200,13 @@ def run(folder):
     rows = [(ep, name, pts) for ep in sorted(results) for name, pts in results[ep].items()]
     changed = write_if_changed(os.path.join(folder, "official_points.csv"), to_csv(["episode", "castaway", "points"], rows))
     meta_path = os.path.join(folder, "official_meta.csv")
-    meta = [("source", url), ("episodes", " ".join(map(str, sorted(results)))), ("winner", winner or "")]
+    old = {r["key"]: r["value"] for r in csv.DictReader(open(meta_path, encoding="utf-8"))} if os.path.exists(meta_path) else {}
+    sigs = read_breakdowns(folder, url, results, dict(parse.images), old.get("breakdown_read", ""))
+    meta = [("source", url), ("episodes", " ".join(map(str, sorted(results)))), ("winner", winner or ""), ("breakdown_read", sigs)]
     # only bump the timestamp when the results changed, so quiet runs don't create commits
     if changed or not os.path.exists(meta_path):
         meta.append(("updated_at", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
     else:
-        old = {r["key"]: r["value"] for r in csv.DictReader(open(meta_path, encoding="utf-8"))}
         meta.append(("updated_at", old.get("updated_at", "")))
     write_if_changed(meta_path, to_csv(["key", "value"], meta))
     print(f"{folder}: episodes {sorted(results) or 'none yet'}{', winner ' + winner if winner else ''}{' (updated)' if changed else ' (no change)'}")
@@ -169,8 +218,20 @@ def active_seasons():
     return [os.path.join("seasons", r["season"].strip()) for r in rows if (r.get("status") or "").strip().lower() == "current"]
 
 
+def backfill_seasons():
+    """Finished seasons whose breakdown pictures have never been read (a one-time catch-up)."""
+    rows = csv.DictReader(open(os.path.join("seasons", "seasons.csv"), encoding="utf-8"))
+    out = []
+    for r in rows:
+        folder = os.path.join("seasons", r["season"].strip())
+        if (r.get("status") or "").strip().lower() == "finished" and os.path.exists(os.path.join(folder, "official_points.csv")) \
+                and not os.path.exists(os.path.join(folder, "official_breakdown.csv")):
+            out.append(folder)
+    return out
+
+
 if __name__ == "__main__":
-    for folder in sys.argv[1:] or active_seasons():
+    for folder in sys.argv[1:] or active_seasons() + backfill_seasons():
         try:
             run(folder)
         except Exception as e:  # one season failing shouldn't stop the other
