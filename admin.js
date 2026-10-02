@@ -296,7 +296,16 @@
       else input = `<input type="${type}" data-i="${i}" value="${esc(s.value)}">`;
       return `<div class="set-row"><div><b>${esc(s.key)}</b>${help ? `<div class="help">${esc(help)}</div>` : ''}</div><div>${input}</div></div>`;
     }).join('');
-    main.innerHTML = `<div class="card"><h2>Pool settings</h2><form id="f">${rows}<div class="row" style="margin-top:14px"><button class="btn primary">Save settings</button></div></form></div>`;
+    main.innerHTML = `<div class="card"><h2>Scores from Global TV</h2>
+      <p class="small muted">The site checks Global's page by itself on Thursday evenings and every morning. If Global has posted and the site hasn't caught up, check now. New scores show on the site in two to three minutes.</p>
+      <button class="btn primary" id="refresh">Check for new scores now</button></div>
+      <div class="card"><h2>Pool settings</h2><form id="f">${rows}<div class="row" style="margin-top:14px"><button class="btn primary">Save settings</button></div></form></div>`;
+    $('#refresh').onclick = async () => {
+      const btn = $('#refresh'); btn.disabled = true;
+      try { await writeFile('seasons/refresh.txt', `Score check requested ${new Date().toISOString()}\n`, 'Check Global TV for new scores'); toast('Checking Global TV now. Give it two to three minutes, then refresh the site.'); }
+      catch (e) { toast(e.message, true); }
+      setTimeout(() => (btn.disabled = false), 60000);
+    };
     $('#f').onsubmit = async (e) => {
       e.preventDefault(); const before = S.settings.map((s) => ({ ...s }));
       $$('[data-i]').forEach((el) => { const s = S.settings[+el.dataset.i]; s.value = el.hasAttribute('data-dt') ? (el.value ? fromLocal(el.value) : '') : el.value.trim(); });

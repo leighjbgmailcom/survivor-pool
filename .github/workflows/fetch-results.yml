@@ -3,12 +3,13 @@ name: Fetch official scores
 # Global TV posts each episode's Fantasy Tribe points on Thursday evenings after 6 PM Eastern.
 on:
   schedule:
-    - cron: "7 22,23 * * 4"     # Thu 6–7 PM Eastern
-    - cron: "7 0-4 * * 5"       # Thu 8 PM – midnight Eastern
-    - cron: "17 13 * * *"       # daily catch-up, ~9 AM Eastern
+    # GitHub often runs scheduled jobs late or skips them, so check often around posting time.
+    - cron: "7,37 22,23 * * 4"  # Thu 6–8 PM Eastern, every half hour
+    - cron: "7,37 0-5 * * 5"    # Thu 8 PM – 2 AM Eastern, every half hour
+    - cron: "17 10,13,17,21 * * *"  # daily catch-ups
   workflow_dispatch: {}         # "Run workflow" button on the Actions tab
   push:
-    paths: [".github/workflows/fetch-results.yml", "tools/fetch_results.py", "seasons/seasons.csv"]   # also runs right after a new season is started
+    paths: [".github/workflows/fetch-results.yml", "tools/fetch_results.py", "seasons/seasons.csv", "seasons/refresh.txt"]   # also runs right after a new season is started, or when an organizer clicks "Check for new scores now"
 
 permissions:
   contents: write
