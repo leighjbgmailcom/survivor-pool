@@ -38,6 +38,11 @@ def available():
 
 def tidy(label, extra=()):
     label = re.sub(r"\s+", " ", label).strip(" .,:;-|")
+    # common misreads
+    label = re.sub(r"\bJoumey\b", "Journey", label)
+    label = re.sub(r"\b[il]st Place\b", "1st Place", label)
+    label = re.sub(r"^Nd Place$", "2nd Place", label)
+    label = re.sub(r"^Rd Place$", "3rd Place", label)
     vocab = list(PHRASES) + list(extra)
     best = difflib.get_close_matches(label.lower(), [v.lower() for v in vocab], n=1, cutoff=0.82)
     if best:
