@@ -8,12 +8,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#2A1A10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Survivor Pool">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
   <header class="top">
     <div class="wrap top-inner">
       <div class="brand"><span class="torch">🔥</span><div><h1 id="pool-name">Survivor Fantasy Pool</h1><div class="sub" id="pool-sub"></div></div></div>
-      <div class="who" id="who"></div>
+      <div class="top-right"><div class="who" id="who"></div><button class="btn small install" id="install" type="button" hidden>📲 Add to home screen</button></div>
     </div>
     <nav class="wrap tabs" id="tabs" hidden>
       <button data-tab="standings" class="on">Standings</button>
@@ -74,5 +81,6 @@
   <script src="config.js"></script>
   <script src="csv-data.js"></script>
   <script src="app.js"></script>
+  <script src="install.js"></script>
 </body>
 </html>
