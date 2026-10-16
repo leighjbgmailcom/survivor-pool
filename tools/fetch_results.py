@@ -139,7 +139,7 @@ def fill_cast(folder, page):
     existing = list(csv.DictReader(open(path, encoding="utf-8"))) if os.path.exists(path) else []
     if any((r.get("name") or "").strip() for r in existing):
         return  # organizers already set the cast; never overwrite it
-    write_if_changed(path, to_csv(["name", "tribe", "out_episode", "finish", "aliases"], [(n, t, "", "", a) for n, t, a in cast]))
+    write_if_changed(path, to_csv(["name", "tribe", "tribe_now", "out_episode", "finish", "aliases"], [(n, t, "", "", "", a) for n, t, a in cast]))
     if colours:
         spath = os.path.join(folder, "settings.csv")
         rows = [r for r in csv.reader(open(spath, encoding="utf-8")) if r]

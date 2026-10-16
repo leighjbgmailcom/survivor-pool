@@ -68,8 +68,11 @@ window.loadCsvPool = async function (base) {
   const castaways = castRows.map((r, i) => {
     if (!tribes.find((t) => t.name === r.tribe)) tribes.push({ name: r.tribe, color: colors[norm(r.tribe)] || ['#E8B820', '#7B4BB7', '#2B8A6E', '#C4521F'][tribes.length % 4], sort: tribes.length });
     const fin = norm(r.finish); const place = { '1': 1, winner: 1, '1st': 1, '2': 2, '2nd': 2, '3': 3, '3rd': 3 }[fin] || null;
-    return { id: i + 1, name: r.name, tribe: r.tribe, eliminated_episode: int(r.out_episode), finish_place: place, sort: i, aliases: (r.aliases || '').split(';') };
+    return { id: i + 1, name: r.name, tribe: r.tribe, tribe_now: r.tribe_now || r.tribe, eliminated_episode: int(r.out_episode), finish_place: place, sort: i, aliases: (r.aliases || '').split(';') };
   });
+  // tribes as they stand now (after any swap); picks still count by the original tribe above
+  const tribesNow = [];
+  castaways.forEach((c) => { if (c.tribe_now && !tribesNow.find((t) => t.name === c.tribe_now)) tribesNow.push({ name: c.tribe_now, color: colors[norm(c.tribe_now)] || tribes.find((t) => t.name === c.tribe_now)?.color || ['#C2185B', '#2B8A6E', '#C4521F'][tribesNow.length % 3], sort: tribesNow.length }); });
   const byName = {};
   castaways.forEach((c) => [c.name, ...c.aliases].filter(Boolean).forEach((n) => (byName[norm(n)] = c)));
   const findC = (name, where) => { if (!name) return null; const c = byName[norm(name)]; if (!c) warnings.push(`${where}: no castaway called "${name}"`); return c || null; };
@@ -193,5 +196,5 @@ window.loadCsvPool = async function (base) {
   const kindOrder = { original: 0, merge: 1 };
   picks.sort((a, b) => a.display_name.localeCompare(b.display_name) || kindOrder[a.kind] - kindOrder[b.kind] || a.tribe.localeCompare(b.tribe) || a.castaway.localeCompare(b.castaway));
 
-  return { settings, tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id })) };
+  return { settings, tribes, tribesNow, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id })) };
 };

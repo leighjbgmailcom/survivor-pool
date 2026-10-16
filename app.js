@@ -116,7 +116,7 @@
         q(sb.rpc('my_entry')),
         q(sb.rpc('is_admin')),
       ]);
-      Object.assign(S, { settings, tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: mine[0] || null, isAdmin });
+      Object.assign(S, { settings, tribes, tribesNow: tribes, castaways, episodes, categories, events, cep, board, weekly, picks, me: mine[0] || null, isAdmin });
       if (isAdmin) S.entries = await q(sb.from('entries').select('*').order('display_name'));
     } catch (e) { toast('Could not load: ' + errMsg(e), true); throw e; }
     finishLoad();
@@ -125,7 +125,7 @@
   function finishLoad() {
     S.cById = Object.fromEntries(S.castaways.map((c) => [c.id, c]));
     S.catById = Object.fromEntries(S.categories.map((c) => [c.id, c]));
-    S.tribeColor = Object.fromEntries(S.tribes.map((t) => [t.name, t.color]));
+    S.tribeColor = Object.fromEntries([...(S.tribesNow || []), ...S.tribes].map((t) => [t.name, t.color]));
     S.locked = new Date() >= new Date(S.settings.picks_deadline);
     S.scored = S.episodes.filter((e) => e.is_scored && e.number >= S.settings.first_scoring_episode);
     document.title = S.settings.pool_name;
@@ -163,13 +163,14 @@
   const dot = (tribe) => `<span class="dot" style="background:${esc(S.tribeColor[tribe] || '#999')}"></span>`;
   const castawayTotal = (id) => S.cep.filter((r) => r.castaway_id === id).reduce((s, r) => s + r.survival + r.bonus, 0);
   const isOut = (c) => c.eliminated_episode != null;
+  const tribeNow = (cid) => { const c = S.castaways.find((x) => x.id === cid); return c?.tribe_now || c?.tribe; };
   const picksFor = (entryId) => S.picks.filter((p) => p.entry_id === entryId);
 
   function pickChips(list) {
     return `<div class="chips">${list.map((p) => {
       const off = p.end_episode != null;
       const title = p.kind === 'merge' ? `Merge pick (from ep ${p.start_episode})` : off ? `Swapped out after ep ${p.end_episode}` : '';
-      return `<span class="chip ${p.eliminated_episode != null || off ? 'out' : ''} ${p.is_mvp ? 'mvp' : ''}" title="${esc(title)}">${dot(p.tribe)}${p.is_mvp ? '⭐ ' : ''}${p.kind === 'merge' ? '➕ ' : ''}${esc(p.castaway)} <b>${p.points}</b></span>`;
+      return `<span class="chip ${p.eliminated_episode != null || off ? 'out' : ''} ${p.is_mvp ? 'mvp' : ''}" title="${esc(title)}">${dot(tribeNow(p.castaway_id) || p.tribe)}${p.is_mvp ? '⭐ ' : ''}${p.kind === 'merge' ? '➕ ' : ''}${esc(p.castaway)} <b>${p.points}</b></span>`;
     }).join('')}</div>`;
   }
 
@@ -408,9 +409,10 @@
         return `<span class="chip ${off ? 'out' : ''} ${p.is_mvp ? 'mvp' : ''}" title="${esc(title)}">${p.is_mvp ? '⭐ ' : ''}${p.kind === 'merge' ? '➕ ' : ''}${esc(p.display_name)} <b>${p.points}</b></span>`;
       }).join('')}</div>`;
     };
-    el.innerHTML = S.tribes.map((t) => `<div class="card"><div class="tribe-head" style="border-color:${esc(t.color)}"><h2 style="margin:0">${esc(t.name)}</h2></div>
+    const now = (c) => c.tribe_now || c.tribe;
+    el.innerHTML = (S.tribesNow?.length ? S.tribesNow : S.tribes).map((t) => `<div class="card"><div class="tribe-head" style="border-color:${esc(t.color)}"><h2 style="margin:0">${esc(t.name)}</h2></div>
       <div class="scroll"><table class="grid-pts"><thead><tr><th>Castaway</th>${showPop ? '<th title="How many players have them">Picked</th>' : ''}${S.scored.map((e) => `<th>Ep ${e.number}</th>`).join('')}<th>Total</th></tr></thead><tbody>
-      ${S.castaways.filter((c) => c.tribe === t.name).map((c) => `<tr class="${showPop ? 'click' : ''}" data-c="${c.id}"><td>${esc(c.name)} ${c.finish_place ? `<span class="pill good">${['', '🏆 Winner', '2nd', '3rd'][c.finish_place]}</span>` : isOut(c) ? `<span class="pill bad">out ep ${c.eliminated_episode}</span>` : ''}</td>
+      ${S.castaways.filter((c) => now(c) === t.name).map((c) => `<tr class="${showPop ? 'click' : ''}" data-c="${c.id}"><td>${esc(c.name)}${now(c) !== c.tribe ? ` <span class="small muted">${dot(c.tribe)}was ${esc(c.tribe)}</span>` : ''} ${c.finish_place ? `<span class="pill good">${['', '🏆 Winner', '2nd', '3rd'][c.finish_place]}</span>` : isOut(c) ? `<span class="pill bad">out ep ${c.eliminated_episode}</span>` : ''}</td>
         ${showPop ? `<td>${pickCount[c.id] || 0}</td>` : ''}
         ${S.scored.map((e) => { const r = S.cep.find((x) => x.castaway_id === c.id && x.episode === e.number); const v = r ? r.survival + r.bonus : null; return `<td class="${v ? '' : 'zero'}" title="${esc(eventTitle(c.id, e.number))}">${v ?? '·'}</td>`; }).join('')}
         <td><b>${castawayTotal(c.id)}</b></td></tr>

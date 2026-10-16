@@ -94,7 +94,7 @@
     await loadSeasonList();
     const [st, ca, pl] = await Promise.all(['settings', 'castaways', 'players'].map((f) => readFile(`${S.folder}/${f}.csv`)));
     S.settings = parseCsv(st).slice(1).map(([k, v]) => ({ key: k, value: v ?? '' }));
-    const c = parseCsv(ca); S.castHead = c[0]; S.castaways = c.slice(1).map((r) => Object.fromEntries(S.castHead.map((h, i) => [h, r[i] ?? ''])));
+    const c = parseCsv(ca); S.castHead = c[0]; S.castaways = c.slice(1).map((r) => Object.fromEntries(S.castHead.map((h, i) => [h, r[i] ?? '']))); if (!S.castHead.includes('tribe_now')) S.castHead.splice(S.castHead.indexOf('tribe') + 1, 0, 'tribe_now');
     const p = parseCsv(pl); const head = p[0];
     S.players = p.slice(1).map((r) => {
       const o = Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()]));
@@ -317,8 +317,8 @@
   function castaways() {
     main.innerHTML = `<div class="card"><h2>Castaways</h2>
       <p class="small muted">${S.castaways.some((c) => c.name) ? '' : "<b>No cast yet.</b> It fills in automatically from Global's Fantasy Tribe page (the Results page in Settings) once Global posts the tribes; the site checks every morning. You can also type it in here. "}The cast, who's out and the scores all come from Global TV. Fill in <b>Out in ep</b> or <b>Finish</b> only to correct something.</p>
-      <form id="f"><div class="scroll"><table><thead><tr><th>Name</th><th>Tribe</th><th>Other spellings <span class="help">(separate with ;)</span></th><th>Out in ep</th><th>Finish</th><th></th></tr></thead><tbody>
-      ${S.castaways.map((c, i) => `<tr><td><input data-i="${i}" data-k="name" value="${esc(c.name)}"></td><td><input data-i="${i}" data-k="tribe" value="${esc(c.tribe)}" style="width:110px"></td>
+      <form id="f"><div class="scroll"><table><thead><tr><th>Name</th><th>Tribe <span class="help">(for picks)</span></th><th>Tribe now <span class="help">(after a swap)</span></th><th>Other spellings <span class="help">(separate with ;)</span></th><th>Out in ep</th><th>Finish</th><th></th></tr></thead><tbody>
+      ${S.castaways.map((c, i) => `<tr><td><input data-i="${i}" data-k="name" value="${esc(c.name)}"></td><td><input data-i="${i}" data-k="tribe" value="${esc(c.tribe)}" style="width:110px"></td><td><input data-i="${i}" data-k="tribe_now" value="${esc(c.tribe_now)}" placeholder="${esc(c.tribe)}" style="width:110px"></td>
         <td><input data-i="${i}" data-k="aliases" value="${esc(c.aliases)}"></td><td><input data-i="${i}" data-k="out_episode" value="${esc(c.out_episode)}" style="width:70px"></td>
         <td><input data-i="${i}" data-k="finish" value="${esc(c.finish)}" style="width:60px"></td><td><button type="button" class="btn small danger" data-rm="${i}">✕</button></td></tr>`).join('')}
       </tbody></table></div>
@@ -378,7 +378,7 @@
         const files = {
           'settings.csv': toCsv([['setting', 'value'], ...set.map((x) => [x.key, x.value])]),
           'scoring.csv': scoring,
-          'castaways.csv': toCsv([['name', 'tribe', 'out_episode', 'finish', 'aliases']]),
+          'castaways.csv': toCsv([['name', 'tribe', 'tribe_now', 'out_episode', 'finish', 'aliases']]),
           'players.csv': toCsv([['player', 'mvp', ...Array.from({ length: per * nt }, (_, i) => `pick${i + 1}`), 'merge_pick', 'swap_out']]),
           'episodes.csv': toCsv([['episode', 'air_date', 'post_merge', 'published'], ...Array.from({ length: 13 }, (_, i) => [i + 1, '', '', ''])]),
           'events.csv': toCsv([['episode', 'castaway', 'event']]),
