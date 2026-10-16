@@ -23,9 +23,9 @@ them to that season's `official_points.csv`. Only the season marked **current** 
 
 - To fetch right away, open the repo's **Actions** tab → **Fetch official scores** → **Run workflow**.
 - Each season, set **Results page** in the admin page's Settings to that season's Fantasy Tribe page.
-- A castaway counts as out from the last episode they appear in once they drop off Global's list,
-  so the site shows someone who just left as "still in" until the next week's results. To mark them
-  out sooner, use **Out in ep** on the Castaways tab.
+- A castaway is marked out in the episode where Global's breakdown shows them voted out, blindsided,
+  quitting or pulled from the game. Failing that, they count as out once they drop off Global's list.
+  To set it by hand, use **Out in ep** on the Castaways tab.
 - If Global's names differ from ours (e.g. "Thien An" vs "An"), add the other spelling under
   **Other spellings** on the Castaways tab. A red box on the Standings page lists any names
   that don't match.

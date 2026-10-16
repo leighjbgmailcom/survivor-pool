@@ -109,6 +109,12 @@ window.loadCsvPool = async function (base) {
     if (e) e.is_scored = true; else episodes.push({ number: n, air_date: null, is_post_merge: false, is_scored: true });
   });
   episodes.sort((a, b) => a.number - b.number);
+  // someone whose breakdown says they left (voted out, torch snuffed, quit, pulled) is out that episode,
+  // without waiting for them to drop off next week's list
+  const exitItem = /voted out|torch snuffed|forfeit|forced to leave|medical(ly)? evac/i;
+  offEps.forEach((n) => castaways.forEach((c) => {
+    if (c.eliminated_episode == null && itemsFor[n]?.[c.id]?.some((i) => exitItem.test(i.label))) c.eliminated_episode = n;
+  }));
   if (offEps.length) {
     // Global only lists castaways still in the game (plus whoever left that week), so whoever is missing
     // from the latest list went home in the last episode they appeared in.
