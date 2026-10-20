@@ -2,8 +2,11 @@
 weekly results picture.
 
 Global publishes only the totals as text; the breakdown is drawn in the image, one row per castaway, in the
-same order as the totals. Each row is read separately and kept ONLY when its items add up to the total Global
-published for that castaway, so a misread never reaches the site.
+same order as the totals. Each row is read separately and kept when its items add up to the total Global
+published for that castaway. Global's text total is sometimes wrong (Season 51 episode 4: Jelly's picture shows
+6, the text says 5), so a row that does NOT add up is still kept when every item is a phrase we know at its usual
+points; its picture total then replaces the text total. Anything less certain is dropped, so a misread never
+reaches the site.
 
 Needs: tesseract (apt install tesseract-ocr) and `pip install pillow pytesseract`.
 """
@@ -93,18 +96,30 @@ def read_row(strip, extra=()):
     return out
 
 
+def certain(items):
+    """True when every item is a phrase we know, at the points Global always gives it."""
+    for label, pts in items:
+        if label == "Survived the Week":
+            if pts not in (1, 3):
+                return False
+        elif PHRASES.get(label) != pts:
+            return False
+    return bool(items)
+
+
 def read_image(data, totals, extra=()):
     """data: image bytes. totals: [(castaway, total), …] in the picture's order.
-    Returns {castaway: [(label, points), …]} for the rows that add up, and the list of castaways that didn't."""
+    Returns ({castaway: [(label, points), …]} for the rows read, castaways that couldn't be read,
+    {castaway: picture total} for rows whose clearly read items disagree with Global's text total)."""
     from PIL import Image
     img = Image.open(io.BytesIO(data)).convert("RGB")
     w, h = img.size
-    good, bad = {}, []
+    good, bad, fixes = {}, [], {}
     for (name, total), (y0, y1) in zip(totals, row_bands(img, len(totals))):
         if total == 0:
             good[name] = []
             continue
-        ok = None
+        ok, sure = None, None
         for x0 in (0.57, 0.52, 0.62):
             cands = read_row(img.crop((int(w * x0), y0, w, y1)), extra)
             for items in cands:
@@ -116,10 +131,15 @@ def read_image(data, totals, extra=()):
                 if sum(p for _, p in fixed) == total:
                     ok = fixed
                     break
+                if sure is None and certain(items):
+                    sure = items
             if ok:
                 break
         if ok:
             good[name] = ok
+        elif sure:
+            good[name] = sure
+            fixes[name] = sum(p for _, p in sure)
         else:
             bad.append(name)
-    return good, bad
+    return good, bad, fixes

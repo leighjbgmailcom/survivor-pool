@@ -151,9 +151,20 @@ def fill_cast(folder, page):
     print(f"{folder}: filled in the cast from Global TV ({len(cast)} castaways, tribes {', '.join(dict.fromkeys(t for _, t, _ in cast))})")
 
 
-def read_breakdowns(folder, page_url, results, images, done):
+def read_fixes(text):
+    """ "4:Jelly=6|5:Ori=3" → {4: {"Jelly": 6}, 5: {"Ori": 3}} """
+    out = {}
+    for x in (text or "").split("|"):
+        m = re.match(r"\s*(\d+):(.+)=(-?\d+)\s*$", x)
+        if m:
+            out.setdefault(int(m.group(1)), {})[m.group(2)] = int(m.group(3))
+    return out
+
+
+def read_breakdowns(folder, page_url, results, images, done, fixes):
     """Read the points breakdown out of each new (or changed) results picture into official_breakdown.csv.
-    `done` remembers which pictures were already tried ("2=ab12cd 3=ef3456") so each is read once."""
+    `done` remembers which pictures were already tried ("2=ab12cd 3=ef3456") so each is read once.
+    `fixes` ({episode: {castaway: total}}) is updated with totals the picture shows that Global's text got wrong."""
     path = os.path.join(folder, "official_breakdown.csv")
     seen = dict(x.split("=", 1) for x in done.split() if "=" in x)
     sig = {ep: hashlib.sha1((images.get(ep, "") + repr(sorted(results[ep].items()))).encode()).hexdigest()[:8] for ep in results}
@@ -171,13 +182,18 @@ def read_breakdowns(folder, page_url, results, images, done):
     extra = [r["event"] for r in csv.DictReader(open(scoring, encoding="utf-8"))] if os.path.exists(scoring) else []
     for ep in todo:
         try:
-            good, bad = breakdown.read_image(fetch_bytes(urllib.parse.urljoin(page_url, images[ep])), list(results[ep].items()), extra)
+            good, bad, found = breakdown.read_image(fetch_bytes(urllib.parse.urljoin(page_url, images[ep])), list(results[ep].items()), extra)
         except Exception as e:
             print(f"{folder}: episode {ep} picture could not be read: {e}", file=sys.stderr)
             continue
         rows = [r for r in rows if r and r[0] != str(ep)]
         rows += [[str(ep), name, label, str(pts)] for name, items in good.items() for label, pts in items]
         seen[str(ep)] = sig[ep]
+        fixes.pop(ep, None)
+        if found:
+            fixes[ep] = found
+            for name, pts in found.items():
+                print(f"{folder}: episode {ep}: {name} is {pts} in the picture but {results[ep][name]} in Global's text; using {pts}")
         print(f"{folder}: episode {ep} breakdown read for {len(good)} of {len(results[ep])} castaways" + (f"; not readable: {', '.join(bad)}" if bad else ""))
     rows.sort(key=lambda r: int(r[0]))
     write_if_changed(path, to_csv(["episode", "castaway", "item", "points"], rows))
@@ -197,12 +213,17 @@ def run(folder):
     if not results and os.path.exists(old_path) and len(open(old_path, encoding="utf-8").read().strip().splitlines()) > 1:
         print(f"{folder}: found no results on the page but already have some; leaving them alone (page format changed?)", file=sys.stderr)
         return
-    rows = [(ep, name, pts) for ep in sorted(results) for name, pts in results[ep].items()]
-    changed = write_if_changed(os.path.join(folder, "official_points.csv"), to_csv(["episode", "castaway", "points"], rows))
     meta_path = os.path.join(folder, "official_meta.csv")
     old = {r["key"]: r["value"] for r in csv.DictReader(open(meta_path, encoding="utf-8"))} if os.path.exists(meta_path) else {}
-    sigs = read_breakdowns(folder, url, results, dict(parse.images), old.get("breakdown_read", ""))
-    meta = [("source", url), ("episodes", " ".join(map(str, sorted(results)))), ("winner", winner or ""), ("breakdown_read", sigs)]
+    fixes = read_fixes(old.get("picture_totals", ""))
+    sigs = read_breakdowns(folder, url, results, dict(parse.images), old.get("breakdown_read", ""), fixes)
+    # the picture wins where Global's text total disagrees with it (kept until that picture changes)
+    fixes = {ep: {n: p for n, p in f.items() if n in results.get(ep, {})} for ep, f in fixes.items() if ep in results}
+    fixes = {ep: f for ep, f in fixes.items() if f}
+    rows = [(ep, name, fixes.get(ep, {}).get(name, pts)) for ep in sorted(results) for name, pts in results[ep].items()]
+    changed = write_if_changed(os.path.join(folder, "official_points.csv"), to_csv(["episode", "castaway", "points"], rows))
+    meta = [("source", url), ("episodes", " ".join(map(str, sorted(results)))), ("winner", winner or ""), ("breakdown_read", sigs),
+            ("picture_totals", "|".join(f"{ep}:{n}={p}" for ep in sorted(fixes) for n, p in fixes[ep].items()))]
     # only bump the timestamp when the results changed, so quiet runs don't create commits
     if changed or not os.path.exists(meta_path):
         meta.append(("updated_at", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
