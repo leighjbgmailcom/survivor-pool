@@ -33,6 +33,7 @@ def fetch_bytes(url):
 def parse(page):
     """Return ({episode: {castaway: points}}, winner or None)."""
     results = {}
+    corrections = []
     parse.images = {}
     last_end = 0
     for m in re.finditer(r"<img\b[^>]*>", page, re.I | re.S):
@@ -41,7 +42,13 @@ def parse(page):
         if not alt:
             continue
         text = html.unescape(alt.group(1))
-        pairs = re.findall(r"([^;:]+?)\s+total points?\s*:\s*(-?\d+)", text, re.I)
+        # a stat correction posted later, e.g. Season 48's "Kyle episode 4 updated total points: 16"
+        fix = re.findall(r"([^;:,]+?)\s+episode\s+(\d+)\s+updated\s+total points?\s*:\s*(-?\d+)", text, re.I)
+        if fix:
+            for name, e, p in fix:
+                corrections.append((int(e), name.strip(), int(p)))
+            continue
+        pairs = re.findall(r"([^;:]+?)\s*total points?\s*:\s*(-?\d+)", text, re.I)
         if not pairs:
             continue
         # Prefer the "EPISODE N POINTS" heading above the image; Global's filenames are sometimes wrong
@@ -62,11 +69,16 @@ def parse(page):
         if ep in results:
             print(f"  episode {ep} appears twice on the page; keeping the first", file=sys.stderr)
             continue
-        results[ep] = {name.strip(): int(p) for name, p in pairs}
+        # Season 45 episode 2 reads "Austin episode 2 total points: 16"; Season 46 uses commas between names
+        results[ep] = {re.sub(r"\s+episode\s+\d+$", "", name.strip(" ,"), flags=re.I): int(p) for name, p in pairs}
         srcs = re.findall(r'\b(?:data-lazy-src|data-src|src)\s*=\s*["\']([^"\']+)', tag, re.I)
         pics = [u for u in srcs if re.search(r"\.(jpe?g|png|webp)(\?|$)", u, re.I) and not u.startswith("data:")]
         if pics:
             parse.images[ep] = html.unescape(pics[0])
+    for ep, name, p in corrections:
+        if ep in results:
+            print(f"  episode {ep}: {name} corrected to {p} (stat correction)", file=sys.stderr)
+            results[ep][name] = p
     plain = html.unescape(re.sub(r"<[^>]+>", " ", page))
     w = re.search(r"if you (?:chose|picked|selected)\s+(.+?)\s+as your MVP", plain, re.I)
     return results, (w.group(1).strip() if w else None)

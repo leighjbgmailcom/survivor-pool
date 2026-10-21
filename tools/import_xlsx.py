@@ -14,6 +14,7 @@ ap.add_argument("--deadline", required=True); ap.add_argument("--picks-per-tribe
 ap.add_argument("--max-tribe-size", default="6"); ap.add_argument("--merge-episode", default="")
 ap.add_argument("--episodes", type=int, default=13); ap.add_argument("--first-air-date", default="")
 ap.add_argument("--colors", default=""); ap.add_argument("--announcement", default="")
+ap.add_argument("--results-page", default="")
 a = ap.parse_args()
 
 def rows(f, sheet):
@@ -26,27 +27,39 @@ os.makedirs(a.out, exist_ok=True)
 
 # castaways
 cast = rows(a.points, "Cast Members")
-hdr = [str(h) for h in cast[2]]; ix = {h: i for i, h in enumerate(hdr)}
+hi = next(i for i, r in enumerate(cast) if r[0] == "Cast Member Name")
+hdr = [str(h) for h in cast[hi]]; ix = {h: i for i, h in enumerate(hdr)}
+def placing(r):
+    """Finish 1-3. Older workbooks (Season 45) have no Placement column, so read it from Reason For Exit.
+    The Placement column wins where both exist (Season 48's Reason For Exit has Kyle and Kamilla swapped)."""
+    if "Placement" in ix: return r[ix["Placement"]]
+    why = str(r[ix.get("Reason For Exit", -1)] or "").lower()
+    if "sole survivor" in why: return 1
+    if re.search(r"2nd runner|second runner", why): return 3
+    if re.search(r"runner", why): return 2
+    return None
 castaways = []
-for r in cast[3:]:
+for r in cast[hi + 1:]:
     if not r[0]: continue
-    place = r[ix["Placement"]]; out = r[ix["Episode Left Game"]]
-    alias = "An;Thien An" if r[0] == "Thien An" else ""
-    castaways.append((r[0], tribe(r[ix["Initial Tribe"]]), out or "", place if place in (1, 2, 3) else "", alias))
+    place = placing(r); out = r[ix["Episode Left Game"]]
+    alias = {"Thien An": "An;Thien An", "Jem": "Jemila"}.get(r[0].strip(), "")  # names Global spells differently
+    castaways.append((r[0].strip(), tribe(r[ix["Initial Tribe"]]), out or "", place if place in (1, 2, 3) else "", alias))
 w("castaways.csv", ["name", "tribe", "out_episode", "finish", "aliases"], castaways)
 
-# scoring categories exactly as Mark names them
-types = [(r[0], r[1]) for r in rows(a.points, "Point Types")[1:] if r[0] and r[0] != "No Score"]
+# scoring categories exactly as Mark names them (keep the first if a name is listed twice)
+types = list({r[0]: (r[0], r[1]) for r in reversed(rows(a.points, "Point Types")[1:]) if r[0] and r[0] != "No Score"}.values())[::-1]
 w("scoring.csv", ["event", "points"], types)
 
 # events (every point, including survival and finale placings, as Mark enters them)
-pts = rows(a.points, "Points")[1:]
+pts = [r for r in rows(a.points, "Points")[1:] if r[2] and r[2] != "No Score"]
 seen = collections.Counter((r[0], r[1], str(r[2]).lower()) for r in pts)
 dups = [k for k, n in seen.items() if n > 1]
 if dups: print("duplicate rows (kept once):", dups, file=sys.stderr)
 w("events.csv", ["episode", "castaway", "event"], sorted({(r[0], r[1], r[2]) for r in pts}, key=lambda r: (r[0], r[1])))
 scored = sorted({r[0] for r in pts})
-post = sorted({r[0] for r in pts if str(r[2]).startswith("Survived the Week (Post")})
+post = sorted({r[0] for r in pts if re.match(r"Survived the Week (\(Post|After)", str(r[2]))})
+# Global: the merge pick starts scoring the episode after the merge episode, which is the first post-merge week
+merge_ep = a.merge_episode or (str(post[0]) if post else "")
 
 import datetime
 eps = []
@@ -57,17 +70,19 @@ w("episodes.csv", ["episode", "air_date", "post_merge", "published"], eps)
 
 # players and picks
 players = rows(a.picks, "Players")
-ph = [str(h) for h in players[5]]; pix = {h: i for i, h in enumerate(ph)}
+phi = next(i for i, r in enumerate(players) if r[0] == "Player Name")
 picks = collections.defaultdict(lambda: {"picks": [], "mvp": "", "merge": "", "swap": ""})
 for r in rows(a.picks, "Player Picks")[1:]:
-    p = picks[r[0]]; kind = r[3]
+    p = picks[r[0]]; kind = r[3]; r = list(r); r[2] = (r[2] or "").strip()
     if kind in (1, 2): p["picks"].append(r[2])
     if kind == 2: p["mvp"] = r[2]
     if kind == 3: p["merge"] = r[2]
-    if kind == 4: p["swap"] = r[2]
+    if kind == 4:  # an original pick swapped out at the merge (Seasons 46 and 48 list it only here)
+        p["swap"] = r[2]
+        if r[2] not in p["picks"]: p["picks"].append(r[2])
 n = max(len(p["picks"]) for p in picks.values())
 out = []
-for r in players[6:]:
+for r in players[phi + 1:]:
     name = r[0]
     if not name: continue
     p = picks.get(name)
@@ -79,7 +94,7 @@ tribes = list(dict.fromkeys(c[1] for c in castaways))
 colors = dict(zip(tribes, a.colors.split(","))) if a.colors else {}
 w("settings.csv", ["setting", "value"], [
     ("Pool name", a.pool_name), ("Season", a.season), ("Commissioner", "Mark Irwin"), ("Picks deadline", a.deadline), ("First scoring episode", "2"),
-    ("Picks per tribe", a.picks_per_tribe), ("Max tribe size", a.max_tribe_size), ("Merge episode", a.merge_episode),
-    ("Survival points", "entered"), ("Results page", f"https://www.globaltv.com/survivor-{a.season}-fantasy-tribe/"),
+    ("Picks per tribe", a.picks_per_tribe), ("Max tribe size", a.max_tribe_size), ("Merge episode", merge_ep),
+    ("Survival points", "entered"), ("Results page", a.results_page or f"https://www.globaltv.com/survivor-{a.season}-fantasy-tribe/"),
 ] + [(f"Tribe color {t}", c) for t, c in colors.items()] + [("Announcement", a.announcement)])
 print(f"{a.out}: {len(castaways)} castaways, {len(out)} players, {len(pts)} point rows, episodes scored {scored}, post-merge from {post[:1]}")

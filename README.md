@@ -56,7 +56,7 @@ deadline (Settings) and the players. The cast and tribes fill in automatically f
 
 **Adding an old season:** convert its two workbooks with
 `python3 tools/import_xlsx.py Players_Picks_S49.xlsx Cast_Points_S49.xlsx seasons/49 --season 49 --pool-name "Survivor 49 Fantasy Pool" --deadline 2025-09-24T20:00:00-04:00`
-(add `--picks-per-tribe 3` etc. if that season differed), then add `49,Survivor 49,finished` to `seasons/seasons.csv`.
+(add `--picks-per-tribe 3` etc. if that season differed; Seasons 45–49 used 2 per tribe, and Global's page for 45 and 46 ends in `-fantasy-tribe-pool/`, so pass `--results-page`), then add `49,Survivor 49,finished` to `seasons/seasons.csv`. To pull Global's official scores for it, run `python3 tools/fetch_results.py seasons/49` once. Seasons 45–51 are in already.
 
 ---
 
