@@ -12,11 +12,11 @@ A leaderboard website for our office Survivor pool. Scoring follows the
 | What | Who / how |
 |---|---|
 | Settings, castaways, players, picks, merge picks | Organizers, on the **admin page** |
-| Weekly scores | **Automatic.** A scheduled GitHub job reads Global TV's results page every Thursday evening (and once a day as a catch-up) |
+| Weekly scores | **Automatic.** A scheduled GitHub job reads Global TV's results page Wednesday at 10 PM and Thursday at 8 AM, 12 PM, 3 PM and 6 PM Eastern |
 | Who's out, the winner, the MVP bonus | Automatic, worked out from Global's results |
 
 ### Weekly scores (automatic)
-Global posts each episode's points on Thursday evenings after 6 PM Eastern, as an image whose
+Global posts each episode's points late Wednesday night or on Thursday, as an image whose
 description lists every castaway's total ("Aubry total points: 21; …"). The job in
 `.github/workflows/fetch-results.yml` runs `tools/fetch_results.py`, which reads those totals and saves
 them to that season's `official_points.csv`. Only the season marked **current** is fetched. The site picks them up within a minute or two.

@@ -297,7 +297,7 @@
       return `<div class="set-row"><div><b>${esc(s.key)}</b>${help ? `<div class="help">${esc(help)}</div>` : ''}</div><div>${input}</div></div>`;
     }).join('');
     main.innerHTML = `<div class="card"><h2>Scores from Global TV</h2>
-      <p class="small muted">The site checks Global's page by itself on Thursday evenings and every morning. If Global has posted and the site hasn't caught up, check now. New scores show on the site in two to three minutes.</p>
+      <p class="small muted">The site checks Global's page by itself Wednesday at 10 PM and Thursday at 8 AM, 12 PM, 3 PM and 6 PM (Eastern). If Global has posted and the site hasn't caught up, check now. New scores show on the site in two to three minutes.</p>
       <button class="btn primary" id="refresh">Check for new scores now</button></div>
       <div class="card"><h2>Pool settings</h2><form id="f">${rows}<div class="row" style="margin-top:14px"><button class="btn primary">Save settings</button></div></form></div>`;
     $('#refresh').onclick = async () => {
