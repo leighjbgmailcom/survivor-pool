@@ -1,0 +1,17 @@
+Subject: SPOILER ALERT!!!! Survivor Season {season} - Points for Episode {episode}
+
+Hi Everyone,
+
+{headline}
+
+Website for more details: {site_link}#standings
+
+For the official rules and results, please refer to the {global_site}.
+
+**Scoreboard**
+
+{scoreboard}
+
+**Castaway's Scores**
+
+{castaway_scores}

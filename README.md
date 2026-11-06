@@ -42,7 +42,8 @@ On the admin page's **Scores** tab, an episode Global has posted shows as *Waiti
 - **Preview** the standings players will see, with rank changes.
 - **Publish** the episode (sets `published` to `yes` in `episodes.csv`). **Unpublish** hides it again.
 - **Copy the weekly email**: subject and message (with a standings table that pastes into Outlook or Gmail), built from
-  `email-template.txt`. Edit the template on the same tab; the codes in `{braces}` fill in each week.
+  `email-template.txt` (Mark's weekly email: headline, scoreboard with picks remaining/eliminated, castaway scores by tribe).
+  Edit the template on the same tab; the codes in `{braces}` fill in each week.
 
 The **Publish scores** setting (`after review` or `automatically`) turns the review step on or off per season.
 
@@ -91,7 +92,7 @@ Repo **Settings → Pages → Build and deployment → Source: Deploy from a bra
 - `index.html`, `style.css`, `app.js`: the public site · `csv-data.js`: loads the CSVs and does the scoring
 - `admin.html`, `admin.js`: the admin page · `admin-key.json`: the passcode-locked GitHub key
 - `seasons/`: one folder per season, plus `seasons.csv` (each season can have an `overrides.csv` of organizer corrections)
-- `email-template.txt`: the weekly results email (created when first saved from the Scores tab)
+- `email-template.txt`: the weekly results email template
 - `tools/fetch_results.py` + `.github/workflows/fetch-results.yml`: automatic weekly scores
 - `tools/import_xlsx.py`: converts Mark's season workbooks into these CSVs, leaving out emails and notes
 - `supabase/`: database version (logins, self-serve picks)

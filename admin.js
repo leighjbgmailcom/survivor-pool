@@ -405,29 +405,37 @@
   }
 
   // ---------- scores: review, adjust, publish, email ----------
-  const DEFAULT_TEMPLATE = `Subject: {pool_name}: standings after Episode {episode}
+  // Mark's weekly email (Season 51). **text** = bold. Codes in {braces} fill in each week.
+  const DEFAULT_TEMPLATE = `Subject: SPOILER ALERT!!!! Survivor Season {season} - Points for Episode {episode}
 
-Hi everyone,
+Hi Everyone,
 
-Episode {episode} scores are in and the standings are updated.
+{headline}
 
-{leader} leads with {leader_points} points.
-Top scorers this week: {top_players}
-Top castaways this week: {top_castaways}
-Out this week: {out_this_week}
-{changes}
-Standings after Episode {episode}:
-{standings}
+Website for more details: {site_link}#standings
 
-See your tribe and every castaway's points here: {site_link}
+For the official rules and results, please refer to the {global_site}.
 
-{commissioner}
+**Scoreboard**
+
+{scoreboard}
+
+**Castaway's Scores**
+
+{castaway_scores}
 `;
   const PLACEHOLDERS = {
-    pool_name: 'Pool name', season: 'Season number', episode: 'Episode number', leader: 'Who is in first',
-    leader_points: "Leader's total", standings: 'The full standings (a table when pasted into email)',
-    top_players: "This week's top 3 players", top_castaways: "This week's top castaways", out_this_week: 'Castaways out this episode',
-    changes: 'Your score corrections for the episode (blank if none)', site_link: 'Link to the site', commissioner: 'Commissioner from Settings',
+    headline: 'Who is in 1st, e.g. "Grant is still in 1st place!", "We have a new leader… Grant!" or a tie',
+    scoreboard: 'Rank, Player, Total Score, Latest Episode, MVP, Picks Remaining, Picks Eliminated (a table)',
+    castaway_scores: "Every castaway's points by episode, by tribe (a table)",
+    standings: 'A simpler table: rank, player, points this episode, total, moves up or down',
+    season: 'Season number', episode: 'Episode number', pool_name: 'Pool name',
+    leader: 'Who is in first', leader_points: "Leader's total",
+    top_players: "This week's top 3 players", top_castaways: "This week's top castaways",
+    out_this_week: 'Castaways out this episode', remaining_castaways: 'Castaways still in the game (handy at the merge)',
+    changes: 'Your score corrections for the episode (blank if none)',
+    site_link: 'Link to the site', global_site: "\"Official Global TV Survivor Fantasy Tribe web site\", linked to Global's page",
+    commissioner: 'Commissioner from Settings',
   };
 
   async function copyText(text, html) {
@@ -477,33 +485,93 @@ See your tribe and every castaway's points here: {site_link}
 
   function emailFor(n) {
     const pool = S.pv; const rows = standingsAt(pool, n);
+    const eps = scoredEps(pool).filter((e) => e <= n); const prevEp = eps.length > 1 ? eps[eps.length - 2] : null;
+    const cById = Object.fromEntries(pool.castaways.map((c) => [c.id, c]));
+    // Global's spelling where we have one ("An", "Kilby"), the way the weekly email names them
+    const gname = (c) => (c.aliases || []).find((x) => x && x !== c.name) || c.name;
+    const outBy = (c) => c.eliminated_episode != null && c.eliminated_episode <= n;
+    const pts = (cid, e) => { const r = pool.cep.find((x) => x.castaway_id === cid && x.episode === e); return r ? r.survival + r.bonus : null; };
+    const signed = (v) => `${v >= 0 ? '+' : ''}${v}`;
     const mv = (r) => (r.move > 0 ? ` ▲${r.move}` : r.move < 0 ? ` ▼${-r.move}` : '');
-    const week = (r) => `${r.week >= 0 ? '+' : ''}${r.week}`;
-    const castWeek = pool.cep.filter((r) => r.episode === n).map((r) => ({ name: pool.castaways.find((c) => c.id === r.castaway_id)?.name, pts: r.survival + r.bonus })).sort((a, b) => b.pts - a.pts);
+    const rankLabel = (r) => `${r.totalRank}${rows.filter((x) => x.totalRank === r.totalRank).length > 1 ? 'T' : ''}`;
+    const castWeek = pool.cep.filter((r) => r.episode === n).map((r) => ({ name: gname(cById[r.castaway_id]), pts: r.survival + r.bonus })).sort((a, b) => b.pts - a.pts);
     const topC = castWeek.filter((c) => c.pts > 0).slice(0, 5);
     const topP = [...rows].sort((a, b) => b.week - a.week).slice(0, 3);
-    const out = pool.castaways.filter((c) => c.eliminated_episode === n).map((c) => c.name);
+    const out = pool.castaways.filter((c) => c.eliminated_episode === n).map(gname);
     const ov = pool.cep.filter((r) => r.episode === n && r.override);
     const leaders = rows.filter((r) => r.totalRank === 1);
+    const prevLeaders = rows.filter((r) => r.beforeRank === 1);
+    const names = (list) => list.map((r) => r.name).join(list.length > 2 ? ', ' : ' and ').replace(/, ([^,]*)$/, ' and $1');
+    const headline = !leaders.length ? '' : leaders.length > 1 ? `${names(leaders)} are tied for 1st place!`
+      : prevEp == null ? `${leaders[0].name} is in 1st place!`
+      : prevLeaders.some((r) => r.id === leaders[0].id) ? `${leaders[0].name} is still in 1st place!`
+      : `We have a new leader… ${leaders[0].name}!`;
+
+    // scoreboard: one row per player, the way the weekly email lays it out
+    const board = rows.map((r) => {
+      const mine = pool.picks.filter((p) => p.entry_id === r.id && p.start_episode <= Math.max(n, pool.settings.first_scoring_episode));
+      const mvp = mine.find((p) => p.is_mvp); const mvpC = mvp && cById[mvp.castaway_id];
+      const others = mine.filter((p) => !p.is_mvp).map((p) => ({ c: cById[p.castaway_id], off: p.end_episode != null && p.end_episode < n }));
+      const sort = (list) => list.map((x) => gname(x.c)).sort((a, b) => a.localeCompare(b)).join(', ');
+      return { rank: rankLabel(r), name: r.name, total: r.total, week: r.week,
+        mvp: mvpC ? `${gname(mvpC)}${outBy(mvpC) ? ' (Eliminated)' : ''}` : '',
+        left: sort(others.filter((x) => !x.off && !outBy(x.c))), gone: sort(others.filter((x) => !x.off && outBy(x.c))) };
+    });
+    // castaway scores: by starting tribe, every castaway who has scored, points per episode
+    const tribeNames = [...new Set(pool.castaways.map((c) => c.tribe))].sort((a, b) => a.localeCompare(b));
+    const castRows = tribeNames.map((t) => ({ tribe: t, color: pool.tribes.find((x) => x.name === t)?.color,
+      list: pool.castaways.filter((c) => c.tribe === t && eps.some((e) => pts(c.id, e) != null)).sort((a, b) => gname(a).localeCompare(gname(b)))
+        .map((c) => ({ name: gname(c), cells: eps.map((e) => pts(c.id, e)), total: eps.reduce((t, e) => t + (pts(c.id, e) || 0), 0) })) })).filter((t) => t.list.length);
+
+    const td = 'border:1px solid #bbb;padding:3px 8px;text-align:left;vertical-align:top';
+    const th = td + ';background:#f1e7d8;font-weight:bold';
+    const tbl = (head, body) => `<table style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:13px"><thead><tr>${head.map((h) => `<th style="${th}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+    const tables = {
+      scoreboard: tbl(['Rank', 'Player', 'Total Score', 'Latest Episode', 'MVP', 'Picks Remaining', 'Picks Eliminated'],
+        board.map((r) => `<tr>${[r.rank, r.name, r.total, r.week, r.mvp, r.left, r.gone].map((v, i) => `<td style="${td}${i === 2 ? ';font-weight:bold' : ''}">${esc(v)}</td>`).join('')}</tr>`).join('')),
+      castaway_scores: tbl(['Castaway', ...eps.map(String), 'Total'], castRows.map((t) => `<tr><td colspan="${eps.length + 2}" style="${td};font-weight:bold;background:${esc(t.color || '#ddd')}33">${esc(t.tribe)}</td></tr>`
+        + t.list.map((c) => `<tr><td style="${td}">${esc(c.name)}</td>${c.cells.map((v) => `<td style="${td}">${v ?? ''}</td>`).join('')}<td style="${td};font-weight:bold">${c.total}</td></tr>`).join('')).join('')),
+      standings: tbl(['#', 'Player', `Ep ${n}`, 'Total', ''], rows.map((r) => `<tr><td style="${td}">${rankLabel(r)}</td><td style="${td}">${esc(r.name)}</td><td style="${td}">${signed(r.week)}</td><td style="${td};font-weight:bold">${r.total}</td><td style="${td}">${r.move > 0 ? `<span style="color:#2B8A6E">▲${r.move}</span>` : r.move < 0 ? `<span style="color:#B3261E">▼${-r.move}</span>` : ''}</td></tr>`).join('')),
+    };
+    const plainTables = {
+      scoreboard: board.map((r) => `${r.rank}. ${r.name} – ${r.total} (latest ${r.week}) · MVP ${r.mvp || '—'} · Remaining: ${r.left || '—'} · Eliminated: ${r.gone || '—'}`).join('\n'),
+      castaway_scores: castRows.map((t) => `${t.tribe}\n` + t.list.map((c) => `  ${c.name}: ${c.cells.map((v) => v ?? '-').join(', ')} = ${c.total}`).join('\n')).join('\n'),
+      standings: rows.map((r) => `${rankLabel(r)}. ${r.name} – ${r.total} (${signed(r.week)})${mv(r)}`).join('\n'),
+    };
+    const results = pool.official?.source || 'https://www.globaltv.com/';
     const vals = {
-      pool_name: pool.settings.pool_name, season: pool.settings.season, episode: n,
-      leader: leaders.map((r) => r.name).join(' and ') || '—', leader_points: leaders[0]?.total ?? 0,
-      top_players: topP.map((r) => `${r.name} (${week(r)})`).join(', ') || '—',
+      pool_name: pool.settings.pool_name, season: pool.settings.season, episode: n, headline,
+      leader: names(leaders) || '—', leader_points: leaders[0]?.total ?? 0,
+      top_players: topP.map((r) => `${r.name} (${signed(r.week)})`).join(', ') || '—',
       top_castaways: topC.map((c) => `${c.name} (${c.pts})`).join(', ') || '—',
       out_this_week: out.join(', ') || 'nobody',
-      changes: ov.length ? `Score corrections: ${ov.map((r) => `${pool.castaways.find((c) => c.id === r.castaway_id)?.name} ${r.bonus} (Global showed ${r.original})${r.override.note ? ' – ' + r.override.note : ''}`).join('; ')}\n` : '',
+      remaining_castaways: pool.castaways.filter((c) => !outBy(c) && eps.some((e) => pts(c.id, e) != null)).map(gname).sort((a, b) => a.localeCompare(b)).join(', ').replace(/, ([^,]*)$/, ' and $1'),
+      changes: ov.length ? `Score corrections: ${ov.map((r) => `${gname(cById[r.castaway_id])} ${r.bonus} (Global showed ${r.original})${r.override.note ? ' – ' + r.override.note : ''}`).join('; ')}\n` : '',
       site_link: siteLink(), commissioner: pool.settings.commissioner_name || '',
-      standings: rows.map((r) => `${r.totalRank}. ${r.name} – ${r.total} (${week(r)})${mv(r)}`).join('\n'),
+      global_site: 'Official Global TV Survivor Fantasy Tribe web site',
     };
     let text = S.tpl.replace(/\r/g, '');
     let subject = '';
     const m = text.match(/^\s*subject\s*:\s*(.*)\n/i);
     if (m) { subject = m[1]; text = text.slice(m[0].length).replace(/^\n+/, ''); }
-    const fill = (t, h) => t.replace(/\{(\w+)\}/g, (all, k) => (k in vals ? (h ? esc(vals[k]) : String(vals[k])) : all));
-    const table = `<table><thead><tr><th>#</th><th>Player</th><th>Ep ${n}</th><th>Total</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r.totalRank}</td><td>${esc(r.name)}</td><td>${week(r)}</td><td><b>${r.total}</b></td><td>${r.move > 0 ? `<span style="color:#2B8A6E">▲${r.move}</span>` : r.move < 0 ? `<span style="color:#B3261E">▼${-r.move}</span>` : ''}</td></tr>`).join('')}</tbody></table>`;
-    const html = text.split('{standings}').map((part) => fill(part, true).replace(/\n/g, '<br>')).join(table)
-      .replace(new RegExp(esc(vals.site_link).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'), 'g'), `<a href="${esc(vals.site_link)}">${esc(vals.site_link)}</a>`);
-    return { subject: fill(subject), text: fill(text), html, rows };
+    const valueOf = (k, plain) => (k in plainTables ? plainTables[k] : k === 'global_site' && plain ? `${vals.global_site} (${results})` : String(vals[k]));
+    const fillPlain = (t) => t.replace(/\{(\w+)\}/g, (all, k) => (k in vals || k in plainTables ? valueOf(k, true) : all)).replace(/\*\*(.+?)\*\*/g, '$1');
+    const linkify = (h) => h.replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)]/g, (u) => `<a href="${u}">${u}</a>`);
+    const lit = (t) => linkify(esc(t)).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+    // build the HTML piece by piece so tables and links aren't escaped; a table swallows the line break after it
+    // fill the plain codes first so a link like {site_link}#standings stays one link
+    text = text.replace(/\{(\w+)\}/g, (all, k) => (k in vals && k !== 'global_site' ? String(vals[k]) : all));
+    let html = ''; let last = 0;
+    text.replace(/\{(\w+)\}/g, (all, k, at) => {
+      html += lit(text.slice(last, at)); last = at + all.length;
+      if (k in tables) { html += tables[k]; if (text[last] === '\n') last++; }
+      else if (k === 'global_site') html += `<a href="${esc(results)}">${esc(vals.global_site)}</a>`;
+      else if (k in vals) html += lit(String(vals[k]));
+      else html += esc(all);
+      return all;
+    });
+    html += lit(text.slice(last));
+    return { subject: fillPlain(subject), text: fillPlain(text), html, rows };
   }
 
   async function scores() {
@@ -569,10 +637,10 @@ See your tribe and every castaway's points here: {site_link}
         <button class="btn" type="button" id="etpl" style="margin-left:auto">Edit template</button></div>
       <p class="small muted">"Copy message" keeps the standings table when pasted into Outlook or Gmail. "Open in email app" sends plain text.</p>
       <div id="tpled" hidden><hr><h3>Email template</h3>
-        <p class="small muted">${S.tplSaved ? '' : "<b>This is a starter template.</b> Paste in the email you've been sending this year and swap the parts that change each week for the codes below. "}The first line sets the subject. Click a code to add it at the cursor.</p>
+        <p class="small muted">The first line sets the subject. Put **two stars** around text to make it bold. Click a code to add it at the cursor. The headline is a suggestion; add your own news (like the merge) in the message box above before you copy it.</p>
         <div class="small ph" style="margin-bottom:8px">${Object.entries(PLACEHOLDERS).map(([k, v]) => `<div><code data-ph="${k}">{${k}}</code> ${esc(v)}</div>`).join('')}</div>
         <textarea id="tpl" rows="18" style="font-family:ui-monospace,Menlo,monospace;font-size:13px">${esc(S.tpl)}</textarea>
-        <div class="row"><button class="btn primary" type="button" id="svtpl">Save template</button><button class="btn" type="button" id="rstpl">Start from the starter template</button></div></div></div>`;
+        <div class="row"><button class="btn primary" type="button" id="svtpl">Save template</button><button class="btn" type="button" id="rstpl">Reset to Mark's weekly email</button></div></div></div>`;
     main.innerHTML = html;
     wireScores(em);
   }
@@ -630,7 +698,7 @@ See your tribe and every castaway's points here: {site_link}
     $('#cbody').onclick = () => { const b = $('#ebody'); copyText(b.innerText, `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px">${b.innerHTML}</div>`).then(() => toast('Message copied. Paste it into your email.')); };
     $('#etpl').onclick = () => { $('#tpled').hidden = !$('#tpled').hidden; };
     $$('[data-ph]').forEach((c) => (c.onclick = () => { const t = $('#tpl'); const ins = `{${c.dataset.ph}}`; const a = t.selectionStart ?? t.value.length; t.value = t.value.slice(0, a) + ins + t.value.slice(t.selectionEnd ?? a); t.focus(); t.selectionStart = t.selectionEnd = a + ins.length; }));
-    $('#rstpl').onclick = () => { if (confirm('Replace the text box with the starter template? (Nothing is saved until you click Save template.)')) $('#tpl').value = DEFAULT_TEMPLATE; };
+    $('#rstpl').onclick = () => { if (confirm("Replace the text box with Mark's weekly email layout? (Nothing is saved until you click Save template.)")) $('#tpl').value = DEFAULT_TEMPLATE; };
     $('#svtpl').onclick = async () => {
       const text = $('#tpl').value.replace(/\r/g, '');
       if (await busy($('#tpled'), () => writeFile('email-template.txt', text.endsWith('\n') ? text : text + '\n', 'Update the weekly email template'))) { S.tpl = text; S.tplSaved = true; toast('Template saved.'); drawScores(); $('#emailcard')?.scrollIntoView(); }
