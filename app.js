@@ -188,7 +188,8 @@
     </div>`;
 
     if (CSV && S.warnings?.length) {
-      html += `<div class="card" style="border-color:var(--bad)"><h3>Spreadsheet check</h3><p class="small muted">Fix these in the CSV files on GitHub — the rows below are being ignored.</p><ul class="small">${S.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+      // details are on the admin page; players just get a heads-up
+      html += `<p class="small muted" style="margin:-6px 0 14px">⚠ The organizers have a small data issue to fix, so some points may be off for now.</p>`;
     }
     if (!S.locked && CSV) {
       html += `<div class="card"><h3>Picks are open</h3><p>Email your 8 picks and MVP to ${esc(S.settings.commissioner_name || 'the commissioner')} before <b>${esc(fmtDate(S.settings.picks_deadline))}</b>.</p>

@@ -219,7 +219,7 @@
     try {
       const pool = await window.loadCsvPool(`${S.folder}/`, { preview: true, read: reader(false) });
       pool.castaways.forEach((c) => { if (c.eliminated_episode != null) info.out.set(c.name, c.eliminated_episode); });
-      info.started = scoredEps(pool).length > 0;
+      info.started = scoredEps(pool).length > 0; info.warnings = pool.warnings;
     } catch {}
     const cur = editingSeason(); const older = S.seasonRows.filter((x) => +x.season < +cur?.season).sort((a, b) => b.season - a.season)[0];
     if (older) { try { info.prev = parseCsv(await readFile(`seasons/${older.season}/players.csv`)).slice(1).map((r) => (r[0] || '').trim()).filter(Boolean); info.prevName = older.name || `Season ${older.season}`; } catch {} }
@@ -250,6 +250,14 @@
     return `<div class="card"><h2 style="margin:0">Who still owes picks</h2>${html}</div>`;
   }
 
+  // problems the scoring found in the season's files (players see only a one-line notice)
+  function dataCheck(list) {
+    if (!list?.length) return '';
+    return `<div class="card" style="border-left:4px solid var(--bad)"><h2 style="margin:0 0 4px">Data check</h2>
+      <p class="small muted">Players see a short notice that something needs fixing. Until these are fixed, the rows below are left out of the scores.</p>
+      <ul class="small">${list.map((w) => `<li>${esc(w.replace(/settings\.csv/g, 'Settings').replace(/players\.csv line \d+ \(([^)]*)\)/, 'Player $1').replace(/castaways\.csv/g, 'Castaways'))}</li>`).join('')}</ul></div>`;
+  }
+
   async function players() {
     if (S.pickInfoFor !== S.folder) { main.innerHTML = '<div class="card narrow muted">Loading players…</div>'; await loadPickStatus(); }
     const list = S.players.map((p, i) => {
@@ -259,7 +267,7 @@
         <td class="small">⭐ ${esc(p.mvp)}<br>${esc(p.picks.filter((x) => norm(x) !== norm(p.mvp)).join(', '))}${p.merge_pick ? `<br>➕ ${esc(p.merge_pick)}${p.swap_out ? ` (swapped out ${esc(p.swap_out)})` : ''}` : ''}</td>
         <td><button class="btn small" data-e="${i}">Edit</button></td></tr>`;
     }).join('');
-    main.innerHTML = `${S.edit != null ? '<div id="editor"></div>' : ''}${pickStatus()}
+    main.innerHTML = `${dataCheck(S.pickInfo?.warnings)}${S.edit != null ? '<div id="editor"></div>' : ''}${pickStatus()}
       <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Players (${S.players.length})</h2><button class="btn primary" id="add">Add a player</button></div>
       <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Player</th><th>Picks</th><th></th></tr></thead><tbody>${list || '<tr><td colspan="3" class="muted">No players yet.</td></tr>'}</tbody></table></div>
       <p class="small muted">Names only here; the site and its files are public, so don't add email addresses.</p></div>`;
@@ -301,10 +309,11 @@
         const bad = problems(p);
         if (bad.length && !confirm(`Save anyway? ${bad.join(', ')}`)) return;
         if (p.swap_out && !p.merge_pick) return toast('Choose the merge pick that replaces the swapped-out castaway.', true);
+        if (p.merge_pick && !mergeOn() && !confirm("Merge episode isn't set in Settings yet, so this merge pick won't count (and players will see a data notice) until you set it. Save anyway?")) return;
         const before = S.players.slice();
         if (S.edit >= 0) S.players[S.edit] = p; else S.players.push(p);
         const ok = await busy(box, () => savePlayers(`${S.edit >= 0 ? 'Update' : 'Add'} ${p.player}`), `Saved ${p.player}.`);
-        if (!ok) S.players = before; else { S.edit = null; players(); }
+        if (!ok) S.players = before; else { S.edit = null; S.pickInfoFor = null; players(); }
       };
       const rm = $('#rm', box);
       if (rm) rm.onclick = async () => {
@@ -627,7 +636,7 @@ For the official rules and results, please refer to the {global_site}.
     const pool = S.pv; const review = pool.settings.review; const eps = scoredEps(pool); const n = S.scoreEp;
     const next = pool.episodes.find((e) => !e.is_scored && e.number >= pool.settings.first_scoring_episode);
     const status = (e) => (isPublic(e) ? (review ? 'Published' : 'Live') : 'Waiting for review');
-    let html = '';
+    let html = dataCheck(pool.warnings);
     if (pool.pending.length) html += `<div class="card banner-pend"><b>Episode ${pool.pending.join(', ')} ${pool.pending.length > 1 ? 'are' : 'is'} in from Global and hidden from players until you publish.</b> Check the points below, fix anything that's wrong, then publish.</div>`;
     html += `<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Weekly scores</h2>
         <button class="btn small" id="refresh">Check Global for new scores</button></div>
