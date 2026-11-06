@@ -187,10 +187,7 @@
       <div class="stat"><div class="k">${S.locked ? 'Picks' : 'Picks due'}</div><div class="v" style="font-size:${S.locked ? 32 : 20}px">${S.locked ? 'Locked' : esc(fmtDate(S.settings.picks_deadline))}</div></div>
     </div>`;
 
-    if (CSV && S.warnings?.length) {
-      // details are on the admin page; players just get a heads-up
-      html += `<p class="small muted" style="margin:-6px 0 14px">⚠ The organizers have a small data issue to fix, so some points may be off for now.</p>`;
-    }
+    // data problems are shown only on the admin page (Data check card), never to players
     if (!S.locked && CSV) {
       html += `<div class="card"><h3>Picks are open</h3><p>Email your 8 picks and MVP to ${esc(S.settings.commissioner_name || 'the commissioner')} before <b>${esc(fmtDate(S.settings.picks_deadline))}</b>.</p>
 </div>`;
