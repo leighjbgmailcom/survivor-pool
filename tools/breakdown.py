@@ -5,7 +5,8 @@ Global publishes only the totals as text; the breakdown is drawn in the image, o
 same order as the totals. Each row is read separately and kept when its items add up to the total Global
 published for that castaway. Global's text total is sometimes wrong (Season 51 episode 4: Jelly's picture shows
 6, the text says 5), so a row that does NOT add up is still kept when every item is a phrase we know at its usual
-points; its picture total then replaces the text total. Anything less certain is dropped, so a misread never
+points AND it adds up to more than the text total; its picture total then replaces the text total. A row that adds
+up to less is treated as a missed line and dropped (the text total stands). Anything less certain is dropped, so a misread never
 reaches the site.
 
 Needs: tesseract (apt install tesseract-ocr) and `pip install pillow pytesseract`.
@@ -137,7 +138,10 @@ def read_image(data, totals, extra=()):
                 break
         if ok:
             good[name] = ok
-        elif sure:
+        elif sure and sum(p for _, p in sure) > total:
+            # only trust the picture over the text when it shows MORE points: the reader can skip a line
+            # (Season 51 episode 7: it read Mike's 5 + 3 but missed a 15, giving 8 against Global's correct 23),
+            # but it doesn't invent known phrases at their usual points
             good[name] = sure
             fixes[name] = sum(p for _, p in sure)
         else:
