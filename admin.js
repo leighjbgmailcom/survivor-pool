@@ -198,7 +198,7 @@
 
   function showApp() {
     $('#tabs').hidden = false; $('#lock').hidden = false;
-    $$('#tabs button').forEach((b) => { b.classList.toggle('on', b.dataset.tab === S.tab); b.onclick = () => { S.tab = b.dataset.tab; S.edit = null; showApp(); }; });
+    $$('#tabs button').forEach((b) => { b.classList.toggle('on', b.dataset.tab === S.tab); b.onclick = () => { S.tab = b.dataset.tab; S.edit = null; S.pickInfoFor = null; showApp(); }; });
     ({ scores, players, settings, castaways, access, seasons })[S.tab]();
   }
   $('#lock').onclick = () => { try { sessionStorage.removeItem('pool-pass'); } catch {} S.token = null; lockScreen(); };
@@ -212,17 +212,58 @@
     return out;
   }
 
-  function players() {
+  // who is out (from Global's results as well as the Castaways tab), whether the season has started, last season's players
+  async function loadPickStatus() {
+    const info = { out: new Map(), started: false, prev: [] };
+    S.castaways.forEach((c) => { if (c.out_episode) info.out.set(c.name, +c.out_episode); });
+    try {
+      const pool = await window.loadCsvPool(`${S.folder}/`, { preview: true, read: reader(false) });
+      pool.castaways.forEach((c) => { if (c.eliminated_episode != null) info.out.set(c.name, c.eliminated_episode); });
+      info.started = scoredEps(pool).length > 0;
+    } catch {}
+    const cur = editingSeason(); const older = S.seasonRows.filter((x) => +x.season < +cur?.season).sort((a, b) => b.season - a.season)[0];
+    if (older) { try { info.prev = parseCsv(await readFile(`seasons/${older.season}/players.csv`)).slice(1).map((r) => (r[0] || '').trim()).filter(Boolean); info.prevName = older.name || `Season ${older.season}`; } catch {} }
+    S.pickInfo = info; S.pickInfoFor = S.folder;
+  }
+  const isOut = (name) => S.pickInfo?.out.has(canon(name));
+  const mergeOn = () => parseInt(setting('Merge episode'), 10) > 0;
+  const needsSwap = (p) => p.picks.filter((x) => !isOut(x)).length >= (parseInt(setting('Max tribe size'), 10) || 6);
+  const missingPicks = (p) => p.picks.length < perTribe() * tribes().length || !p.mvp;
+
+  function pickStatus() {
+    const info = S.pickInfo; if (!info) return '';
+    const names = (list) => list.map((p) => p.player || p);
+    const block = (title, waiting, total, note) => `<div style="margin-top:10px"><div class="row" style="justify-content:space-between;align-items:center">
+        <b>${title}: ${total - waiting.length} of ${total} in</b>${waiting.length ? `<button class="btn small" type="button" data-copy="${esc(names(waiting).join(', '))}">Copy names</button>` : ''}</div>
+      ${waiting.length ? `<div class="small">Waiting on: ${waiting.map((p) => `<b>${esc(p.player || p)}</b>${p.why ? ` <span class="muted">(${esc(p.why)})</span>` : ''}`).join(', ')}</div>` : '<div class="small" style="color:var(--good,#2B8A6E)">✓ Everyone is in.</div>'}
+      ${note ? `<div class="small muted">${note}</div>` : ''}</div>`;
+    let html = '';
+    if (mergeOn()) {
+      const waiting = S.players.filter((p) => !p.merge_pick || (needsSwap(p) && !p.swap_out)).map((p) => ({ player: p.player, why: !p.merge_pick ? (needsSwap(p) ? 'merge pick and a swap' : '') : 'needs a swap' }));
+      html += block('Merge picks', waiting, S.players.length, `Merge picks score from episode ${parseInt(setting('Merge episode'), 10) + 1}.`);
+    }
+    const incomplete = S.players.filter(missingPicks).map((p) => ({ player: p.player, why: !p.mvp ? (p.picks.length ? 'no MVP' : 'no picks') : `${p.picks.length} of ${perTribe() * tribes().length} picks` }));
+    if (!mergeOn() || incomplete.length) html += block('Starting picks', incomplete, S.players.length, '');
+    const notBack = info.started ? [] : info.prev.filter((n) => !S.players.some((p) => norm(p.player) === norm(n)));
+    if (notBack.length) html += `<div style="margin-top:10px"><div class="row" style="justify-content:space-between;align-items:center"><b>From ${esc(info.prevName)}, not added yet (${notBack.length})</b><button class="btn small" type="button" data-copy="${esc(notBack.join(', '))}">Copy names</button></div><div class="small">${notBack.map(esc).join(', ')}</div></div>`;
+    if (!mergeOn() && info.started) html += '<div class="small muted" style="margin-top:8px">Merge picks show up here once you set <b>Merge episode</b> in Settings.</div>';
+    return `<div class="card"><h2 style="margin:0">Who still owes picks</h2>${html}</div>`;
+  }
+
+  async function players() {
+    if (S.pickInfoFor !== S.folder) { main.innerHTML = '<div class="card narrow muted">Loading players…</div>'; await loadPickStatus(); }
     const list = S.players.map((p, i) => {
       const bad = problems(p);
-      return `<tr><td><b>${esc(p.player)}</b>${bad.length ? `<div class="small" style="color:var(--bad)">⚠ ${esc(bad.join(', '))}</div>` : ''}</td>
+      const owes = mergeOn() && (!p.merge_pick || (needsSwap(p) && !p.swap_out));
+      return `<tr><td><b>${esc(p.player)}</b>${owes ? ' <span class="pill" style="color:var(--accent)">merge pick needed</span>' : ''}${bad.length ? `<div class="small" style="color:var(--bad)">⚠ ${esc(bad.join(', '))}</div>` : ''}</td>
         <td class="small">⭐ ${esc(p.mvp)}<br>${esc(p.picks.filter((x) => norm(x) !== norm(p.mvp)).join(', '))}${p.merge_pick ? `<br>➕ ${esc(p.merge_pick)}${p.swap_out ? ` (swapped out ${esc(p.swap_out)})` : ''}` : ''}</td>
         <td><button class="btn small" data-e="${i}">Edit</button></td></tr>`;
     }).join('');
-    main.innerHTML = `${S.edit != null ? '<div id="editor"></div>' : ''}
+    main.innerHTML = `${S.edit != null ? '<div id="editor"></div>' : ''}${pickStatus()}
       <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Players (${S.players.length})</h2><button class="btn primary" id="add">Add a player</button></div>
       <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Player</th><th>Picks</th><th></th></tr></thead><tbody>${list || '<tr><td colspan="3" class="muted">No players yet.</td></tr>'}</tbody></table></div>
       <p class="small muted">Names only here; the site and its files are public, so don't add email addresses.</p></div>`;
+    $$('[data-copy]').forEach((b) => (b.onclick = () => copyText(b.dataset.copy).then(() => toast('Names copied.'))));
     $('#add').onclick = () => { S.edit = -1; players(); };
     $$('[data-e]').forEach((b) => (b.onclick = () => { S.edit = +b.dataset.e; players(); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
     if (S.edit != null) editor();
@@ -241,8 +282,8 @@
           ${S.castaways.filter((c) => c.tribe === t).map((c) => `<label class="cb ${p.picks.includes(c.name) ? 'on' : ''}"><input type="checkbox" data-c="${esc(c.name)}" ${p.picks.includes(c.name) ? 'checked' : ''}>${esc(c.name)}</label>`).join('')}</div>`).join('')}</div>
         <div class="row" style="margin-top:12px">
           <label>MVP <select id="mvp"><option value="">— choose —</option>${p.picks.map((x) => `<option ${x === p.mvp ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-          <label>Merge pick <span class="help">(after the merge)</span><select id="mg"><option value="">— none —</option>${S.castaways.filter((c) => !p.picks.includes(c.name)).map((c) => `<option ${c.name === p.merge_pick ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
-          <label>Swap out <span class="help">(only if the tribe is full)</span><select id="sw"><option value="">— none —</option>${p.picks.map((x) => `<option ${x === p.swap_out ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+          <label>Merge pick <span class="help">(after the merge)</span><select id="mg"><option value="">— none —</option>${S.castaways.filter((c) => !p.picks.includes(c.name) && (!isOut(c.name) || c.name === p.merge_pick)).map((c) => `<option value="${esc(c.name)}" ${c.name === p.merge_pick ? 'selected' : ''}>${esc(c.name)}${isOut(c.name) ? ' (voted out)' : ''}</option>`).join('')}</select></label>
+          <label>Swap out <span class="help">(only if the tribe is full)</span><select id="sw"><option value="">— none —</option>${p.picks.filter((x) => !isOut(x) || x === p.swap_out).map((x) => `<option value="${esc(x)}" ${x === p.swap_out ? 'selected' : ''}>${esc(x)}${isOut(x) ? ' (voted out)' : ''}</option>`).join('')}</select></label>
         </div>
         <div class="row"><button class="btn primary" id="sv">Save player</button><button class="btn" id="cx">Cancel</button>${S.edit >= 0 ? '<button class="btn danger" id="rm" style="margin-left:auto">Delete player</button>' : ''}</div></div>`;
       const keep = () => { p.player = $('#nm', box).value; p.mvp = $('#mvp', box).value; p.merge_pick = $('#mg', box).value; p.swap_out = $('#sw', box).value; };
