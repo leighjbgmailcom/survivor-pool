@@ -200,8 +200,9 @@
 
     if (S.official?.episodes?.length) {
       const when = S.official.updated_at ? ` · updated ${esc(fmtDate(S.official.updated_at))}` : '';
-      html += `<p class="small muted" style="margin:-6px 0 14px">Weekly scores come straight from the <a href="${esc(S.official.source)}" target="_blank" rel="noopener">official Global TV results</a> (episodes ${S.official.episodes.join(', ')})${when}.</p>`;
+      html += `<p class="small muted" style="margin:-6px 0 14px">Weekly scores come straight from the <a href="${esc(S.official.source)}" target="_blank" rel="noopener">official Global TV results</a> (episodes ${S.official.episodes.join(', ')})${when}${S.overrides?.length ? '; organizer adjustments are marked ✎' : ''}.</p>`;
     }
+    if (S.pending?.length) html += `<p class="small" style="margin:-6px 0 14px">⏳ Episode ${S.pending.join(', ')} scores are in and being checked by the organizers. They'll appear here once published.</p>`;
     if (!S.board.length) { el.innerHTML = html + `<div class="card muted">No entries yet.${CSV && S.seasons?.some((x) => x.status === 'finished') ? ` Want to see a full season? <a href="?season=${encodeURIComponent(S.seasons.find((x) => x.status === 'finished').season)}">Look at ${esc(S.seasons.find((x) => x.status === 'finished').name)}</a>.` : ''}</div>`; return; }
 
     let rank = 0, prev = null;
@@ -347,8 +348,9 @@
   function eventTitle(cid, ep) {
     const r = S.cep.find((x) => x.castaway_id === cid && x.episode === ep); if (!r) return '';
     const items = itemsOf(cid, ep);
-    if (!items) return `Global TV total: ${r.bonus}`;
-    return items.map((i) => `${i.label}: +${i.points}`).join('\n');
+    const adj = r.override ? `Adjusted by the organizers${r.override.note ? ': ' + r.override.note : ''} (was ${r.original})` : '';
+    if (!items) return r.override ? adj : `Global TV total: ${r.bonus}`;
+    return items.map((i) => `${i.label}: +${i.points}`).join('\n') + (adj ? '\n' + adj : '');
   }
 
   function pointsList(cid) {
@@ -356,7 +358,7 @@
     if (!eps.length) return '';
     return `<div class="bd">${eps.map((e) => {
       const r = S.cep.find((x) => x.castaway_id === cid && x.episode === e.number); const items = itemsOf(cid, e.number); const total = r.survival + r.bonus;
-      return `<div class="bd-ep"><span class="bd-h">Ep ${e.number} <b>${total}</b></span>${items == null ? '<span class="muted">total only; see Global\'s chart for the details</span>'
+      return `<div class="bd-ep"><span class="bd-h">Ep ${e.number} <b>${total}</b></span>${r.override ? `<span class="bd-i" title="Was ${r.original}">✎ Adjusted by the organizers${r.override.note ? ': ' + esc(r.override.note) : ''}</span>` : ''}${items == null ? (r.override ? '' : '<span class="muted">total only; see Global\'s chart for the details</span>')
         : items.length ? items.map((i) => `<span class="bd-i">${esc(i.label)} <b>+${i.points}</b></span>`).join('') : '<span class="muted">no points</span>'}</div>`;
     }).join('')}</div>`;
   }
@@ -414,7 +416,7 @@
       <div class="scroll"><table class="grid-pts"><thead><tr><th>Castaway</th>${showPop ? '<th title="How many players have them">Picked</th>' : ''}${S.scored.map((e) => `<th>Ep ${e.number}</th>`).join('')}<th>Total</th></tr></thead><tbody>
       ${S.castaways.filter((c) => now(c) === t.name).map((c) => `<tr class="${showPop ? 'click' : ''}" data-c="${c.id}"><td>${esc(c.name)}${now(c) !== c.tribe ? ` <span class="small muted">${dot(c.tribe)}was ${esc(c.tribe)}</span>` : ''} ${c.finish_place ? `<span class="pill good">${['', '🏆 Winner', '2nd', '3rd'][c.finish_place]}</span>` : isOut(c) ? `<span class="pill bad">out ep ${c.eliminated_episode}</span>` : ''}</td>
         ${showPop ? `<td>${pickCount[c.id] || 0}</td>` : ''}
-        ${S.scored.map((e) => { const r = S.cep.find((x) => x.castaway_id === c.id && x.episode === e.number); const v = r ? r.survival + r.bonus : null; return `<td class="${v ? '' : 'zero'}" title="${esc(eventTitle(c.id, e.number))}">${v ?? '·'}</td>`; }).join('')}
+        ${S.scored.map((e) => { const r = S.cep.find((x) => x.castaway_id === c.id && x.episode === e.number); const v = r ? r.survival + r.bonus : null; return `<td class="${v ? '' : 'zero'}" title="${esc(eventTitle(c.id, e.number))}">${v ?? '·'}${r?.override ? '<sup>✎</sup>' : ''}</td>`; }).join('')}
         <td><b>${castawayTotal(c.id)}</b></td></tr>
         ${showPop && S.openCast.has(c.id) ? `<tr class="detail"><td colspan="${cols}" style="text-align:left"><div class="bd-t">Picked by</div>${pickers(c)}${pointsList(c.id) ? `<div class="bd-t" style="margin-top:10px">Points</div>${pointsList(c.id)}` : ''}</td></tr>` : ''}`).join('')}
       </tbody></table></div></div>`).join('') + `<p class="small muted">${showPop ? 'Tap a castaway to see what they scored points for and who picked them, with the points each player has earned from them. ⭐ = their MVP, ➕ = merge pick, struck-through = swapped out. ' : ''}Castaway totals exclude finish bonuses.</p>`;

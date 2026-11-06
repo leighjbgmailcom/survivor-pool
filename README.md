@@ -12,7 +12,8 @@ A leaderboard website for our office Survivor pool. Scoring follows the
 | What | Who / how |
 |---|---|
 | Settings, castaways, players, picks, merge picks | Organizers, on the **admin page** |
-| Weekly scores | **Automatic.** A scheduled GitHub job reads Global TV's results page Wednesday at 10 PM and Thursday at 8 AM, 12 PM, 3 PM and 6 PM Eastern |
+| Weekly scores | **Automatic.** A scheduled GitHub job reads Global TV's results page Wednesday at 10 PM and Thursday at 8 AM, 12 PM, 3 PM and 6 PM Eastern. With **Publish scores: after review** (Season 51), they stay hidden until an organizer publishes them on the admin page's **Scores** tab |
+| Score corrections, publishing, weekly email | Organizers, on the admin page's **Scores** tab |
 | Who's out, the winner, the MVP bonus | Automatic, worked out from Global's results |
 
 ### Weekly scores (automatic)
@@ -32,6 +33,21 @@ them to that season's `official_points.csv`. Only the season marked **current** 
 - Weeks Global hasn't posted can still be scored by hand in the season's `events.csv` (`episode,castaway,event`,
   using the category names in `scoring.csv`). Once Global's numbers for that episode arrive, they replace
   the hand-entered ones.
+
+### Reviewing, correcting and publishing scores
+On the admin page's **Scores** tab, an episode Global has posted shows as *Waiting for review* and is hidden from players
+(the public site shows "being checked by the organizers"). For that episode you can:
+- **Correct** any castaway's total for the week (type the right total under *Use*, with a reason). Corrections are saved in
+  the season's `overrides.csv`, which the score job never touches, and show on the site marked ✎.
+- **Preview** the standings players will see, with rank changes.
+- **Publish** the episode (sets `published` to `yes` in `episodes.csv`). **Unpublish** hides it again.
+- **Copy the weekly email**: subject and message (with a standings table that pastes into Outlook or Gmail), built from
+  `email-template.txt`. Edit the template on the same tab; the codes in `{braces}` fill in each week.
+
+The **Publish scores** setting (`after review` or `automatically`) turns the review step on or off per season.
+
+**Quick link:** `…/survivor-pool/admin?passcode=YOUR_PASSCODE` opens the admin page already unlocked (the passcode is
+then removed from the address bar). The Passcode tab shows the link to bookmark. Anyone with it can edit.
 
 ### Admin page
 Anyone with the passcode can edit settings, castaways and players. Changes save straight into this
@@ -74,7 +90,8 @@ Repo **Settings → Pages → Build and deployment → Source: Deploy from a bra
 ## Files
 - `index.html`, `style.css`, `app.js`: the public site · `csv-data.js`: loads the CSVs and does the scoring
 - `admin.html`, `admin.js`: the admin page · `admin-key.json`: the passcode-locked GitHub key
-- `seasons/`: one folder per season, plus `seasons.csv`
+- `seasons/`: one folder per season, plus `seasons.csv` (each season can have an `overrides.csv` of organizer corrections)
+- `email-template.txt`: the weekly results email (created when first saved from the Scores tab)
 - `tools/fetch_results.py` + `.github/workflows/fetch-results.yml`: automatic weekly scores
 - `tools/import_xlsx.py`: converts Mark's season workbooks into these CSVs, leaving out emails and notes
 - `supabase/`: database version (logins, self-serve picks)

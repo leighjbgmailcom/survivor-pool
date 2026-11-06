@@ -30,11 +30,18 @@ window.loadSeasons = async function () {
     .filter((x) => x.season && x.status !== 'hidden').sort((a, b) => (+b.season || 0) - (+a.season || 0));
 };
 
-window.loadCsvPool = async function (base) {
+// opts.preview: include episodes still waiting for the organizer's review (admin page only)
+// opts.read(path): returns a file's text (or null if missing) instead of fetching it from the site (admin page reads GitHub directly)
+window.loadCsvPool = async function (base, opts = {}) {
   const parseCsv = window.parseCsvText;
   const warnings = [];
 
   async function get(name) {
+    if (opts.read) {
+      const text = await opts.read(base + name);
+      if (text == null) throw new Error(`${base}${name} not found`);
+      return parseCsv(text);
+    }
     const res = await fetch(base + name + '?t=' + Date.now());
     if (!res.ok) throw new Error(`${base}${name} not found`);
     return parseCsv(await res.text());
@@ -47,7 +54,7 @@ window.loadCsvPool = async function (base) {
   const [setRows, castRows, epRows, catRows, evRows, playerRows] = await Promise.all(
     ['settings.csv', 'castaways.csv', 'episodes.csv', 'scoring.csv', 'events.csv', 'players.csv'].map(get));
   // written by the scheduled GitHub job (tools/fetch_results.py) from Global TV's results page
-  const [offRows, metaRows, bdRows] = await Promise.all([getOptional('official_points.csv'), getOptional('official_meta.csv'), getOptional('official_breakdown.csv')]);
+  let [offRows, metaRows, bdRows, ovRows] = await Promise.all([getOptional('official_points.csv'), getOptional('official_meta.csv'), getOptional('official_breakdown.csv'), getOptional('overrides.csv')]);
   const meta = Object.fromEntries(metaRows.map((r) => [r.key, r.value]));
 
   // settings
@@ -60,6 +67,8 @@ window.loadCsvPool = async function (base) {
     merge_episode: int(kv.mergeepisode), merge_window_open: false,
     // 'entered' = every point (survival + finale placings) is a row in events.csv, the way Mark scores; 'auto' = site adds them
     auto_points: norm(kv.survivalpoints) === 'auto', announcement: kv.announcement || null,
+    // 'after review' = Global's new scores stay off the public site until an organizer publishes the episode
+    review: norm(kv.publishscores) === 'afterreview',
   };
 
   // castaways & tribes
@@ -80,6 +89,16 @@ window.loadCsvPool = async function (base) {
   const episodes = epRows.map((r) => ({ number: int(r.episode), air_date: r.air_date || null, is_post_merge: yes(r.post_merge), is_scored: yes(r.published) })).filter((e) => e.number != null).sort((a, b) => a.number - b.number);
   const categories = catRows.map((r, i) => ({ id: i + 1, label: r.event, points: int(r.points) || 0, sort: i }));
   const catByName = Object.fromEntries(categories.map((c) => [norm(c.label), c]));
+
+  // review gate: episodes Global has posted that an organizer hasn't published yet
+  const publishedEps = new Set(episodes.filter((e) => e.is_scored).map((e) => e.number));
+  const rawOffEps = [...new Set(offRows.map((r) => int(r.episode)).filter((n) => n != null))].sort((a, b) => a - b);
+  const pending = settings.review ? rawOffEps.filter((n) => !publishedEps.has(n) && n >= settings.first_scoring_episode) : [];
+  const finaleShown = !settings.review || opts.preview || (rawOffEps.length && publishedEps.has(rawOffEps[rawOffEps.length - 1]));
+  if (settings.review && !opts.preview) {
+    offRows = offRows.filter((r) => publishedEps.has(int(r.episode)));
+    bdRows = bdRows.filter((r) => publishedEps.has(int(r.episode)));
+  }
 
   const events = []; const seen = new Set();
   evRows.forEach((r) => {
@@ -130,7 +149,7 @@ window.loadCsvPool = async function (base) {
     });
   }
   for (let i = events.length - 1; i >= 0; i--) if (official[events[i].episode]) events.splice(i, 1);
-  if (meta.winner) { const w = findC(meta.winner, 'Global TV winner'); if (w && !castaways.some((c) => c.finish_place === 1)) w.finish_place = 1; }
+  if (meta.winner && finaleShown) { const w = findC(meta.winner, 'Global TV winner'); if (w && !castaways.some((c) => c.finish_place === 1)) w.finish_place = 1; }
 
   // points per castaway per published episode
   const cep = [];
@@ -148,6 +167,21 @@ window.loadCsvPool = async function (base) {
       cep.push({ castaway_id: c.id, episode: e.number, survival, bonus });
     });
   });
+  // organizer corrections (overrides.csv: episode,castaway,points,note) replace that castaway's total for the week
+  const overrides = [];
+  const shownEps = new Set(episodes.filter((e) => e.is_scored && e.number >= settings.first_scoring_episode).map((e) => e.number));
+  ovRows.forEach((r) => {
+    const ep = int(r.episode); const p = int(r.points); const c = findC(r.castaway, `overrides.csv line ${r._line}`);
+    if (ep == null || p == null || !c) return;
+    overrides.push({ episode: ep, castaway_id: c.id, castaway: c.name, points: p, note: r.note || '' });
+    if (!shownEps.has(ep)) return;
+    let row = cep.find((x) => x.castaway_id === c.id && x.episode === ep);
+    if (!row) { row = { castaway_id: c.id, episode: ep, survival: 0, bonus: 0, official: !!official[ep], items: null }; cep.push(row); }
+    row.original = row.survival + row.bonus;
+    row.survival = 0; row.bonus = p; row.override = { note: r.note || '' };
+    if (!(row.items && row.items.reduce((t, i) => t + i.points, 0) === p)) row.items = null;
+  });
+
   const pts = (cid, from, to) => cep.filter((r) => r.castaway_id === cid && r.episode >= from && (to == null || r.episode <= to)).reduce((s, r) => s + r.survival + r.bonus, 0);
 
   // players & picks
@@ -196,5 +230,5 @@ window.loadCsvPool = async function (base) {
   const kindOrder = { original: 0, merge: 1 };
   picks.sort((a, b) => a.display_name.localeCompare(b.display_name) || kindOrder[a.kind] - kindOrder[b.kind] || a.tribe.localeCompare(b.tribe) || a.castaway.localeCompare(b.castaway));
 
-  return { settings, tribes, tribesNow, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id })) };
+  return { settings, tribes, tribesNow, castaways, episodes, categories, events, cep, board, weekly, picks, me: null, isAdmin: false, warnings, overrides, pending, official: { episodes: offEps, updated_at: meta.updated_at || null, source: meta.source || null }, entries: board.map((b) => ({ id: b.entry_id })) };
 };

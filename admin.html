@@ -19,6 +19,18 @@
     .set-row input, .set-row select, .set-row textarea { margin-top: 0; }
     td input, td select { margin: 0; padding: 6px 8px; }
     .saving { opacity: .6; pointer-events: none; }
+    .ep-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ep-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 120px; text-align: left; }
+    .ep-list button.cur { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(196,82,31,.25); }
+    .ep-list .st { font-size: 12px; font-weight: 500; }
+    .st.pend { color: var(--accent); } .st.pub { color: var(--good, #2B8A6E); }
+    td.chg input { border-color: var(--accent); background: rgba(196,82,31,.06); }
+    .mv-up { color: var(--good, #2B8A6E); } .mv-down { color: var(--bad); }
+    .email-box { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: #fff; color: #222; font: 14px/1.5 Arial, Helvetica, sans-serif; max-height: 520px; overflow: auto; }
+    .email-box:focus { outline: 2px solid var(--accent); }
+    .email-box table { border-collapse: collapse; margin: 6px 0; } .email-box td, .email-box th { border: 1px solid #ccc; padding: 3px 8px; text-align: left; }
+    .ph code { cursor: pointer; }
+    .banner-pend { border-left: 4px solid var(--accent); }
   </style>
 </head>
 <body>
@@ -28,7 +40,8 @@
       <div class="who"><a class="btn small" href="./" style="color:#FBEFDD;border-color:#8A6A4A;text-decoration:none">View site</a><button class="btn small" id="lock" hidden>Lock</button></div>
     </div>
     <nav class="wrap tabs" id="tabs" hidden>
-      <button data-tab="players" class="on">Players &amp; picks</button>
+      <button data-tab="scores" class="on">Scores</button>
+      <button data-tab="players">Players &amp; picks</button>
       <button data-tab="settings">Settings</button>
       <button data-tab="castaways">Castaways</button>
       <button data-tab="seasons">Seasons</button>
@@ -38,6 +51,7 @@
   <main class="wrap" id="main"><div class="card narrow muted">Loading…</div></main>
   <div id="toast" class="toast" hidden></div>
   <script src="config.js"></script>
+  <script src="csv-data.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

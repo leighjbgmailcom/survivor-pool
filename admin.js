@@ -10,7 +10,7 @@
   const REPO = cfg.GITHUB_REPO || (location.hostname.endsWith('.github.io') ? `${location.hostname.split('.')[0]}/${location.pathname.split('/')[1]}` : '');
   const BRANCH = cfg.GITHUB_BRANCH || 'main';
   const main = $('#main');
-  const S = { tab: 'players', files: {}, edit: null };
+  const S = { tab: 'scores', files: {}, edit: null };
 
   function toast(text, err = false) {
     const t = $('#toast'); t.textContent = text; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false;
@@ -94,6 +94,7 @@
     await loadSeasonList();
     const [st, ca, pl] = await Promise.all(['settings', 'castaways', 'players'].map((f) => readFile(`${S.folder}/${f}.csv`)));
     S.settings = parseCsv(st).slice(1).map(([k, v]) => ({ key: k, value: v ?? '' }));
+    if (!S.settings.some((x) => norm(x.key) === 'publishscores')) S.settings.splice(Math.max(0, S.settings.findIndex((x) => norm(x.key) === 'announcement')), 0, { key: 'Publish scores', value: 'automatically' });
     const c = parseCsv(ca); S.castHead = c[0]; S.castaways = c.slice(1).map((r) => Object.fromEntries(S.castHead.map((h, i) => [h, r[i] ?? '']))); if (!S.castHead.includes('tribe_now')) S.castHead.splice(S.castHead.indexOf('tribe') + 1, 0, 'tribe_now');
     const p = parseCsv(pl); const head = p[0];
     S.players = p.slice(1).map((r) => {
@@ -130,10 +131,18 @@
     let box = null;
     try { const r = await fetch('admin-key.json?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) box = await r.json(); } catch {}
     S.box = box;
+    // admin?passcode=… (or admin#passcode=…) unlocks straight away; the passcode is then removed from the address bar
+    const qs = new URLSearchParams(location.search); const hs = new URLSearchParams(location.hash.slice(1));
+    const urlPass = qs.get('passcode') ?? hs.get('passcode');
+    if (urlPass != null) {
+      qs.delete('passcode'); hs.delete('passcode');
+      history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : '') + (hs.toString() ? '#' + hs : ''));
+    }
     if (!box) return setupScreen();
+    if (urlPass && (await unlock(urlPass, true))) return;
     let remembered = ''; try { remembered = sessionStorage.getItem('pool-pass') || ''; } catch {}
     if (remembered && (await unlock(remembered, true))) return;
-    lockScreen();
+    lockScreen(urlPass ? "The passcode in that link didn't work. It may have been changed." : '');
   }
 
   function lockScreen(msg = '') {
@@ -190,7 +199,7 @@
   function showApp() {
     $('#tabs').hidden = false; $('#lock').hidden = false;
     $$('#tabs button').forEach((b) => { b.classList.toggle('on', b.dataset.tab === S.tab); b.onclick = () => { S.tab = b.dataset.tab; S.edit = null; showApp(); }; });
-    ({ players, settings, castaways, access, seasons })[S.tab]();
+    ({ scores, players, settings, castaways, access, seasons })[S.tab]();
   }
   $('#lock').onclick = () => { try { sessionStorage.removeItem('pool-pass'); } catch {} S.token = null; lockScreen(); };
 
@@ -278,6 +287,7 @@
     'Max tribe size': ['number', "Most castaways a player can have at once. At the merge, a player with this many still in must swap one out to add a merge pick."],
     'Merge episode': ['number', 'Fill in once the tribes merge. Merge picks score from the episode after this.'],
     'Results page': ['text', "Global TV's Fantasy Tribe page for this season. Weekly scores are read from it automatically."],
+    'Publish scores': ['select:after review|automatically', '"after review": new scores from Global stay hidden from players until an organizer checks them on the Scores tab and clicks Publish. "automatically": they go live as soon as they arrive.'],
     'Survival points': ['select:entered|auto', 'Only matters for weeks Global hasn\'t posted. Leave as "entered".'],
     'Announcement': ['textarea', 'Optional banner across the top of the site.'],
   };
@@ -394,18 +404,255 @@
     };
   }
 
+  // ---------- scores: review, adjust, publish, email ----------
+  const DEFAULT_TEMPLATE = `Subject: {pool_name}: standings after Episode {episode}
+
+Hi everyone,
+
+Episode {episode} scores are in and the standings are updated.
+
+{leader} leads with {leader_points} points.
+Top scorers this week: {top_players}
+Top castaways this week: {top_castaways}
+Out this week: {out_this_week}
+{changes}
+Standings after Episode {episode}:
+{standings}
+
+See your tribe and every castaway's points here: {site_link}
+
+{commissioner}
+`;
+  const PLACEHOLDERS = {
+    pool_name: 'Pool name', season: 'Season number', episode: 'Episode number', leader: 'Who is in first',
+    leader_points: "Leader's total", standings: 'The full standings (a table when pasted into email)',
+    top_players: "This week's top 3 players", top_castaways: "This week's top castaways", out_this_week: 'Castaways out this episode',
+    changes: 'Your score corrections for the episode (blank if none)', site_link: 'Link to the site', commissioner: 'Commissioner from Settings',
+  };
+
+  async function copyText(text, html) {
+    try {
+      if (html && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+    }
+  }
+  const siteLink = () => new URL('./', location.href).href;
+  const quickLink = () => `${new URL('admin', siteLink()).href}?passcode=${encodeURIComponent(S.pass || '')}`;
+
+  // reads a repo file for loadCsvPool: fresh from GitHub, or from what was just read when cached is true
+  const reader = (cached) => async (path) => {
+    if (cached && path in S.files) return S.files[path]?.text ?? null;
+    try { return await readFile(path); } catch (e) { if (e.status === 404) { S.files[path] = null; return null; } throw e; }
+  };
+
+  async function loadScores() {
+    const base = `${S.folder}/`;
+    S.pv = await window.loadCsvPool(base, { preview: true, read: reader(false) });   // everything, including episodes waiting for review
+    S.pub = await window.loadCsvPool(base, { read: reader(true) });                  // what the public site shows right now
+    const ep = parseCsv(S.files[`${S.folder}/episodes.csv`]?.text || 'episode,air_date,post_merge,published\n');
+    S.epHead = ep[0]; S.epRows = ep.slice(1);
+    let tpl = null; try { tpl = await readFile('email-template.txt'); } catch (e) { if (e.status !== 404) throw e; }
+    S.tpl = tpl || DEFAULT_TEMPLATE; S.tplSaved = !!tpl;
+  }
+
+  const scoredEps = (pool) => pool.episodes.filter((e) => e.is_scored && e.number >= pool.settings.first_scoring_episode).map((e) => e.number);
+  const isPublic = (n) => scoredEps(S.pub).includes(n);
+
+  // standings as of episode n, with this week's points and movement since the previous scored episode
+  function standingsAt(pool, n) {
+    const eps = scoredEps(pool); const latest = Math.max(...eps); const prev = Math.max(-1, ...eps.filter((e) => e < n));
+    const wk = {}; pool.weekly.forEach((w) => ((wk[w.entry_id] ||= {})[w.episode] = w.points));
+    const upTo = (id, k) => Object.entries(wk[id] || {}).filter(([e]) => +e <= k).reduce((t, [, v]) => t + v, 0);
+    const rows = pool.board.map((b) => ({ name: b.display_name, id: b.entry_id, week: wk[b.entry_id]?.[n] || 0, total: n >= latest ? b.total : upTo(b.entry_id, n), before: prev < 0 ? null : upTo(b.entry_id, prev) }));
+    const rankBy = (key) => { const sorted = rows.filter((r) => r[key] != null).sort((a, b) => b[key] - a[key]); sorted.forEach((r) => (r[key + 'Rank'] = sorted.filter((x) => x[key] > r[key]).length + 1)); };
+    rankBy('total'); if (prev >= 0) rankBy('before');
+    rows.forEach((r) => (r.move = r.beforeRank ? r.beforeRank - r.totalRank : 0));
+    return rows.sort((a, b) => a.totalRank - b.totalRank || a.name.localeCompare(b.name));
+  }
+
+  function emailFor(n) {
+    const pool = S.pv; const rows = standingsAt(pool, n);
+    const mv = (r) => (r.move > 0 ? ` ▲${r.move}` : r.move < 0 ? ` ▼${-r.move}` : '');
+    const week = (r) => `${r.week >= 0 ? '+' : ''}${r.week}`;
+    const castWeek = pool.cep.filter((r) => r.episode === n).map((r) => ({ name: pool.castaways.find((c) => c.id === r.castaway_id)?.name, pts: r.survival + r.bonus })).sort((a, b) => b.pts - a.pts);
+    const topC = castWeek.filter((c) => c.pts > 0).slice(0, 5);
+    const topP = [...rows].sort((a, b) => b.week - a.week).slice(0, 3);
+    const out = pool.castaways.filter((c) => c.eliminated_episode === n).map((c) => c.name);
+    const ov = pool.cep.filter((r) => r.episode === n && r.override);
+    const leaders = rows.filter((r) => r.totalRank === 1);
+    const vals = {
+      pool_name: pool.settings.pool_name, season: pool.settings.season, episode: n,
+      leader: leaders.map((r) => r.name).join(' and ') || '—', leader_points: leaders[0]?.total ?? 0,
+      top_players: topP.map((r) => `${r.name} (${week(r)})`).join(', ') || '—',
+      top_castaways: topC.map((c) => `${c.name} (${c.pts})`).join(', ') || '—',
+      out_this_week: out.join(', ') || 'nobody',
+      changes: ov.length ? `Score corrections: ${ov.map((r) => `${pool.castaways.find((c) => c.id === r.castaway_id)?.name} ${r.bonus} (Global showed ${r.original})${r.override.note ? ' – ' + r.override.note : ''}`).join('; ')}\n` : '',
+      site_link: siteLink(), commissioner: pool.settings.commissioner_name || '',
+      standings: rows.map((r) => `${r.totalRank}. ${r.name} – ${r.total} (${week(r)})${mv(r)}`).join('\n'),
+    };
+    let text = S.tpl.replace(/\r/g, '');
+    let subject = '';
+    const m = text.match(/^\s*subject\s*:\s*(.*)\n/i);
+    if (m) { subject = m[1]; text = text.slice(m[0].length).replace(/^\n+/, ''); }
+    const fill = (t, h) => t.replace(/\{(\w+)\}/g, (all, k) => (k in vals ? (h ? esc(vals[k]) : String(vals[k])) : all));
+    const table = `<table><thead><tr><th>#</th><th>Player</th><th>Ep ${n}</th><th>Total</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r.totalRank}</td><td>${esc(r.name)}</td><td>${week(r)}</td><td><b>${r.total}</b></td><td>${r.move > 0 ? `<span style="color:#2B8A6E">▲${r.move}</span>` : r.move < 0 ? `<span style="color:#B3261E">▼${-r.move}</span>` : ''}</td></tr>`).join('')}</tbody></table>`;
+    const html = text.split('{standings}').map((part) => fill(part, true).replace(/\n/g, '<br>')).join(table)
+      .replace(new RegExp(esc(vals.site_link).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'), 'g'), `<a href="${esc(vals.site_link)}">${esc(vals.site_link)}</a>`);
+    return { subject: fill(subject), text: fill(text), html, rows };
+  }
+
+  async function scores() {
+    main.innerHTML = '<div class="card narrow muted">Loading scores…</div>';
+    try { await loadScores(); } catch (e) { main.innerHTML = `<div class="card narrow"><h2>Couldn't load the scores</h2><p class="msg err">${esc(e.message)}</p></div>`; return; }
+    const eps = scoredEps(S.pv);
+    if (S.scoreEp == null || !eps.includes(S.scoreEp)) S.scoreEp = S.pv.pending[0] ?? eps[eps.length - 1] ?? null;
+    drawScores();
+  }
+
+  function drawScores() {
+    const pool = S.pv; const review = pool.settings.review; const eps = scoredEps(pool); const n = S.scoreEp;
+    const next = pool.episodes.find((e) => !e.is_scored && e.number >= pool.settings.first_scoring_episode);
+    const status = (e) => (isPublic(e) ? (review ? 'Published' : 'Live') : 'Waiting for review');
+    let html = '';
+    if (pool.pending.length) html += `<div class="card banner-pend"><b>Episode ${pool.pending.join(', ')} ${pool.pending.length > 1 ? 'are' : 'is'} in from Global and hidden from players until you publish.</b> Check the points below, fix anything that's wrong, then publish.</div>`;
+    html += `<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Weekly scores</h2>
+        <button class="btn small" id="refresh">Check Global for new scores</button></div>
+      <p class="small muted">${review ? "New scores from Global stay hidden from players until you review and publish them here." : 'Scores from Global go live as soon as they arrive. To review them first, set <b>Publish scores</b> to "after review" in Settings.'}</p>
+      <div class="ep-list">${eps.map((e) => `<button class="btn ${e === n ? 'cur' : ''}" data-ep="${e}"><b>Episode ${e}</b><span class="st ${isPublic(e) ? 'pub' : 'pend'}">${status(e)}</span></button>`).join('')}
+      ${next ? `<button class="btn" disabled><b>Episode ${next.number}</b><span class="st">Not posted yet</span></button>` : ''}</div></div>`;
+    if (n == null) { main.innerHTML = html + '<div class="card muted">No scores yet this season.</div>'; wireScores(); return; }
+
+    // points table for the episode
+    const rows = pool.castaways.map((c) => {
+      const r = pool.cep.find((x) => x.castaway_id === c.id && x.episode === n);
+      const o = pool.overrides.find((x) => x.castaway_id === c.id && x.episode === n);
+      if (!r && !o) return null;
+      const global = r ? (r.override ? r.original : r.survival + r.bonus) : null;
+      const items = r?.override ? null : r?.items;
+      const what = r?.official ? (items ? items.map((i) => `${i.label} +${i.points}`).join(', ') : '<span class="muted">total only</span>')
+        : pool.events.filter((v) => v.castaway_id === c.id && v.episode === n).map((v) => `${pool.categories[v.category_id - 1].label} +${pool.categories[v.category_id - 1].points}`).join(', ');
+      return { c, global, o, what };
+    }).filter(Boolean);
+    const missing = pool.castaways.filter((c) => !rows.some((r) => r.c.id === c.id));
+    html += `<div class="card"><h2>Episode ${n} points <span class="pill ${isPublic(n) ? 'good' : ''}">${status(n)}</span></h2>
+      <p class="small muted">The <b>Global</b> column is what Global posted. To correct a castaway, type their right total for the week under <b>Use</b> and say why. Leave <b>Use</b> blank to go with Global. Players see corrections marked ✎.</p>
+      <form id="ovf"><div class="scroll"><table><thead><tr><th>Castaway</th><th class="num">Global</th><th>Use</th><th>Reason</th><th>What Global scored them for</th></tr></thead><tbody>
+      ${rows.map(({ c, global, o, what }) => `<tr><td><b>${esc(c.name)}</b></td><td class="num">${global ?? '—'}</td>
+        <td class="${o ? 'chg' : ''}"><input type="number" data-ov="${esc(c.name)}" value="${o ? o.points : ''}" style="width:80px"></td>
+        <td><input data-note="${esc(c.name)}" value="${esc(o?.note || '')}" placeholder="${o ? '' : 'optional'}" maxlength="120"></td>
+        <td class="small">${what || '<span class="muted">—</span>'}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${missing.length ? `<div class="row" style="margin-top:8px"><label>Add points for a castaway not listed <select id="addc"><option value="">— choose —</option>${missing.map((c) => `<option>${esc(c.name)}</option>`).join('')}</select></label></div>` : ''}
+      <div class="row" style="margin-top:12px"><button class="btn primary">Save corrections</button></div></form></div>`;
+
+    // preview + publish + email
+    const em = emailFor(n);
+    html += `<div class="card"><h2>${isPublic(n) ? 'Standings' : 'Preview: standings'} after episode ${n}</h2>
+      ${isPublic(n) ? '' : '<p class="small muted">This is what players will see once you publish.</p>'}
+      <div class="scroll"><table><thead><tr><th>#</th><th></th><th>Player</th><th class="num">Ep ${n}</th><th class="num">Total</th></tr></thead><tbody>
+      ${em.rows.map((r) => `<tr><td class="rank">${r.totalRank}</td><td class="small ${r.move > 0 ? 'mv-up' : r.move < 0 ? 'mv-down' : 'muted'}">${r.move > 0 ? '▲' + r.move : r.move < 0 ? '▼' + -r.move : '–'}</td><td>${esc(r.name)}</td><td class="num">${r.week >= 0 ? '+' : ''}${r.week}</td><td class="num total">${r.total}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="row" style="margin-top:12px">${!isPublic(n) ? `<button class="btn primary" id="pub">Publish episode ${n}</button>` : review ? `<button class="btn small" id="unpub">Unpublish episode ${n}</button>` : ''}</div></div>`;
+
+    html += `<div class="card" id="emailcard"><h2>Email to players</h2>
+      ${isPublic(n) ? '' : `<p class="small" style="color:var(--accent)">Draft. Publish episode ${n} before you send it, so the site matches the email.</p>`}
+      <label>Subject <div class="row"><input id="esub" value="${esc(em.subject)}" style="flex:1"><button class="btn" type="button" id="csub">Copy</button></div></label>
+      <div class="small muted" style="margin:10px 0 4px">Message (you can edit it here before copying)</div>
+      <div class="email-box" id="ebody" contenteditable="true">${em.html}</div>
+      <div class="row" style="margin-top:10px"><button class="btn primary" type="button" id="cbody">Copy message</button>
+        <a class="btn" id="mailto" href="mailto:?subject=${encodeURIComponent(em.subject)}&body=${encodeURIComponent(em.text)}">Open in email app</a>
+        <button class="btn" type="button" id="etpl" style="margin-left:auto">Edit template</button></div>
+      <p class="small muted">"Copy message" keeps the standings table when pasted into Outlook or Gmail. "Open in email app" sends plain text.</p>
+      <div id="tpled" hidden><hr><h3>Email template</h3>
+        <p class="small muted">${S.tplSaved ? '' : "<b>This is a starter template.</b> Paste in the email you've been sending this year and swap the parts that change each week for the codes below. "}The first line sets the subject. Click a code to add it at the cursor.</p>
+        <div class="small ph" style="margin-bottom:8px">${Object.entries(PLACEHOLDERS).map(([k, v]) => `<div><code data-ph="${k}">{${k}}</code> ${esc(v)}</div>`).join('')}</div>
+        <textarea id="tpl" rows="18" style="font-family:ui-monospace,Menlo,monospace;font-size:13px">${esc(S.tpl)}</textarea>
+        <div class="row"><button class="btn primary" type="button" id="svtpl">Save template</button><button class="btn" type="button" id="rstpl">Start from the starter template</button></div></div></div>`;
+    main.innerHTML = html;
+    wireScores(em);
+  }
+
+  function wireScores(em) {
+    $$('[data-ep]').forEach((b) => (b.onclick = () => { S.scoreEp = +b.dataset.ep; drawScores(); }));
+    $('#refresh').onclick = async () => {
+      const btn = $('#refresh'); btn.disabled = true;
+      try { await writeFile('seasons/refresh.txt', `Score check requested ${new Date().toISOString()}\n`, 'Check Global TV for new scores'); toast('Checking Global now. Give it two to three minutes, then reopen this tab.'); }
+      catch (e) { toast(e.message, true); }
+      setTimeout(() => (btn.disabled = false), 60000);
+    };
+    if (!em) return;
+    const n = S.scoreEp;
+    const addc = $('#addc');
+    if (addc) addc.onchange = () => {
+      const name = addc.value; if (!name) return;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><b>${esc(name)}</b></td><td class="num">—</td><td class="chg"><input type="number" data-ov="${esc(name)}" style="width:80px"></td><td><input data-note="${esc(name)}" maxlength="120"></td><td></td>`;
+      $('#ovf tbody').appendChild(tr); addc.querySelector(`option[value=""]`).selected = true; tr.querySelector('input').focus();
+    };
+    $('#ovf').onsubmit = async (e) => {
+      e.preventDefault();
+      const path = `${S.folder}/overrides.csv`;
+      const keep = parseCsv(S.files[path]?.text || 'episode,castaway,points,note\n').slice(1).filter((r) => +r[0] !== n);
+      const mine = $$('[data-ov]').map((el) => [n, el.dataset.ov, el.value.trim(), $(`[data-note="${CSS.escape(el.dataset.ov)}"]`).value.trim()]).filter((r) => r[2] !== '');
+      const bad = mine.find((r) => isNaN(+r[2])); if (bad) return toast(`${bad[1]}: points must be a number.`, true);
+      const rows = [...keep, ...mine].sort((a, b) => +a[0] - +b[0] || String(a[1]).localeCompare(b[1]));
+      const ok = await busy($('#ovf'), () => writeFile(path, toCsv([['episode', 'castaway', 'points', 'note'], ...rows]), `Episode ${n}: ${mine.length ? 'correct ' + mine.map((r) => `${r[1]} to ${r[2]}`).join(', ') : 'clear corrections'}`));
+      if (ok) { toast(isPublic(n) ? 'Saved. The public site updates in about a minute.' : 'Saved. Check the preview, then publish.'); scores(); }
+    };
+    const setPublished = async (yes) => {
+      const i = S.epHead.indexOf('published'); if (i < 0) S.epHead.push('published');
+      const col = S.epHead.indexOf('published');
+      let row = S.epRows.find((r) => +r[0] === n);
+      if (!row) { row = S.epHead.map(() => ''); row[0] = String(n); S.epRows.push(row); S.epRows.sort((a, b) => +a[0] - +b[0]); }
+      while (row.length < S.epHead.length) row.push('');
+      row[col] = yes ? 'yes' : '';
+      return writeFile(`${S.folder}/episodes.csv`, toCsv([S.epHead, ...S.epRows]), `${yes ? 'Publish' : 'Unpublish'} episode ${n} scores`);
+    };
+    const pub = $('#pub');
+    if (pub) pub.onclick = async () => {
+      if (!confirm(`Publish episode ${n}? Players will see the new standings in about a minute.`)) return;
+      if (await busy(pub.parentElement, () => setPublished(true))) {
+        toast(`Episode ${n} published. Players see it in about a minute. Your email is ready below.`);
+        await scores(); $('#emailcard')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    const unpub = $('#unpub');
+    if (unpub) unpub.onclick = async () => {
+      if (!confirm(`Hide episode ${n} from players again?`)) return;
+      if (await busy(unpub.parentElement, () => setPublished(false), `Episode ${n} hidden.`)) scores();
+    };
+    $('#csub').onclick = () => copyText($('#esub').value).then(() => toast('Subject copied.'));
+    $('#cbody').onclick = () => { const b = $('#ebody'); copyText(b.innerText, `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px">${b.innerHTML}</div>`).then(() => toast('Message copied. Paste it into your email.')); };
+    $('#etpl').onclick = () => { $('#tpled').hidden = !$('#tpled').hidden; };
+    $$('[data-ph]').forEach((c) => (c.onclick = () => { const t = $('#tpl'); const ins = `{${c.dataset.ph}}`; const a = t.selectionStart ?? t.value.length; t.value = t.value.slice(0, a) + ins + t.value.slice(t.selectionEnd ?? a); t.focus(); t.selectionStart = t.selectionEnd = a + ins.length; }));
+    $('#rstpl').onclick = () => { if (confirm('Replace the text box with the starter template? (Nothing is saved until you click Save template.)')) $('#tpl').value = DEFAULT_TEMPLATE; };
+    $('#svtpl').onclick = async () => {
+      const text = $('#tpl').value.replace(/\r/g, '');
+      if (await busy($('#tpled'), () => writeFile('email-template.txt', text.endsWith('\n') ? text : text + '\n', 'Update the weekly email template'))) { S.tpl = text; S.tplSaved = true; toast('Template saved.'); drawScores(); $('#emailcard')?.scrollIntoView(); }
+    };
+  }
+
   // ---------- passcode / key ----------
   function access() {
     main.innerHTML = `<div class="card" style="max-width:640px"><h2>Change the passcode</h2>
       <form id="f1"><label>New passcode <input type="password" id="a1" minlength="4" required autocomplete="new-password"></label>
       <label>New passcode again <input type="password" id="a2" minlength="4" required autocomplete="new-password"></label>
       <button class="btn primary">Change passcode</button></form><p class="msg err" id="m1"></p>
-      <p class="small muted">Everyone with the old passcode loses access. Share the new one with your organizers.</p></div>
+      <p class="small muted">Everyone with the old passcode loses access, and old quick links stop working. Share the new one with your organizers.</p></div>
+      <div class="card" style="max-width:640px"><h2>Quick link</h2>
+      <p class="small muted">Bookmark this to open the organizer page already unlocked. Anyone with the link can edit, so share it only with organizers.</p>
+      <div class="row"><input id="ql" readonly value="${esc(quickLink())}" style="flex:1"><button class="btn" id="qlc" type="button">Copy</button></div></div>
       <div class="card" style="max-width:640px"><h2>Replace the GitHub key</h2>
       <p class="small muted">Only needed if the key expires or you revoke it. Create a new one the same way as during setup (Contents: Read and write on this repo only).</p>
       <form id="f2"><label>New GitHub key <input id="t2" required autocomplete="off" placeholder="github_pat_…"></label>
       <label>Passcode <input type="password" id="b1" minlength="4" required value="${esc(S.pass || '')}"></label><input type="hidden" id="b2">
       <button class="btn primary">Save new key</button></form><p class="msg err" id="m2"></p></div>`;
+    $('#qlc').onclick = () => copyText($('#ql').value).then(() => toast('Link copied.'));
     $('#f1').onsubmit = (e) => { e.preventDefault(); saveKey(S.token, $('#a1').value, $('#a2').value, $('#m1'), $('#f1')); };
     $('#f2').onsubmit = (e) => { e.preventDefault(); saveKey($('#t2').value.trim(), $('#b1').value, $('#b1').value, $('#m2'), $('#f2')); };
   }
