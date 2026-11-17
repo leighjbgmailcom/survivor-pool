@@ -537,8 +537,8 @@ For the official rules and results, please refer to the {global_site}.
     const pool = S.pv; const rows = standingsAt(pool, n);
     const eps = scoredEps(pool).filter((e) => e <= n); const prevEp = eps.length > 1 ? eps[eps.length - 2] : null;
     const cById = Object.fromEntries(pool.castaways.map((c) => [c.id, c]));
-    // Global's spelling where we have one ("An", "Kilby"), the way the weekly email names them
-    const gname = (c) => (c.aliases || []).find((x) => x && x !== c.name) || c.name;
+    // the name as it's spelled on the Castaways tab ("Thien An", "Kilby"), not Global's short form
+    const gname = (c) => c.name;
     const outBy = (c) => c.eliminated_episode != null && c.eliminated_episode <= n;
     const pts = (cid, e) => { const r = pool.cep.find((x) => x.castaway_id === cid && x.episode === e); return r ? r.survival + r.bonus : null; };
     const signed = (v) => `${v >= 0 ? '+' : ''}${v}`;
@@ -655,8 +655,8 @@ For the official rules and results, please refer to the {global_site}.
       const what = r?.official ? (items ? items.map((i) => `${i.label} +${i.points}`).join(', ') : '<span class="muted">total only</span>')
         : pool.events.filter((v) => v.castaway_id === c.id && v.episode === n).map((v) => `${pool.categories[v.category_id - 1].label} +${pool.categories[v.category_id - 1].points}`).join(', ');
       return { c, global, o, what };
-    }).filter(Boolean);
-    const missing = pool.castaways.filter((c) => !rows.some((r) => r.c.id === c.id));
+    }).filter(Boolean).sort((a, b) => a.c.name.localeCompare(b.c.name));
+    const missing = pool.castaways.filter((c) => !rows.some((r) => r.c.id === c.id)).sort((a, b) => a.name.localeCompare(b.name));
     html += `<div class="card"><h2>Episode ${n} points <span class="pill ${isPublic(n) ? 'good' : ''}">${status(n)}</span></h2>
       <p class="small muted">The <b>Global</b> column is what Global posted. To correct a castaway, type their right total for the week under <b>Use</b> and say why. Leave <b>Use</b> blank to go with Global. Players see corrections marked ✎.</p>
       <form id="ovf"><div class="scroll"><table><thead><tr><th>Castaway</th><th class="num">Global</th><th>Use</th><th>Reason</th><th>What Global scored them for</th></tr></thead><tbody>

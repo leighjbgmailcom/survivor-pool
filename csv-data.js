@@ -137,6 +137,18 @@ window.loadCsvPool = async function (base, opts = {}) {
   offEps.forEach((n) => castaways.forEach((c) => {
     if (c.eliminated_episode == null && itemsFor[n]?.[c.id]?.some((i) => exitItem.test(i.label))) c.eliminated_episode = n;
   }));
+  // everyone still in gets "Survived the Week", so someone on that week's list without it went home that episode
+  // (only when Global's breakdown for them is complete, i.e. their items add up to their total)
+  const survItem = /surviv/i;
+  offEps.forEach((n) => {
+    const week = itemsFor[n] || {};
+    if (!Object.values(week).some((list) => list.some((i) => survItem.test(i.label)))) return;
+    castaways.forEach((c) => {
+      const p = official[n][c.id]; const list = week[c.id] || [];
+      if (c.eliminated_episode != null || p == null || list.reduce((t, i) => t + i.points, 0) !== p) return;
+      if (!list.some((i) => survItem.test(i.label))) c.eliminated_episode = n;
+    });
+  });
   if (offEps.length) {
     // Global only lists castaways still in the game (plus whoever left that week), so whoever is missing
     // from the latest list went home in the last episode they appeared in.
