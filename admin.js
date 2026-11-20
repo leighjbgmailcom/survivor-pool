@@ -374,13 +374,25 @@
   }
 
   // ---------- castaways ----------
-  function castaways() {
+  async function castaways() {
+    // who's out and the final placings as the site works them out from Global's results, shown in grey where the box is blank
+    if (S.castCalc?.folder !== S.folder) {
+      S.castCalc = { folder: S.folder, out: {}, fin: {} }; main.innerHTML = '<div class="card narrow muted">Loading castaways…</div>';
+      try {
+        const pool = await window.loadCsvPool(`${S.folder}/`, { preview: true, read: reader(false) });
+        pool.castaways.forEach((c) => { S.castCalc.out[norm(c.name)] = c.eliminated_episode ?? ''; S.castCalc.fin[norm(c.name)] = c.finish_place ?? ''; });
+      } catch { /* leave the boxes plain */ }
+      if (S.tab !== 'castaways') return;
+    }
+    const calc = (c, k) => S.castCalc[k][norm(c.name)] ?? '';
+    const finLabel = (v) => ({ 1: '1st', 2: '2nd', 3: '3rd' }[v] || '');
     main.innerHTML = `<div class="card"><h2>Castaways</h2>
-      <p class="small muted">${S.castaways.some((c) => c.name) ? '' : "<b>No cast yet.</b> It fills in automatically from Global's Fantasy Tribe page (the Results page in Settings) once Global posts the tribes; the site checks every morning. You can also type it in here. "}The cast, who's out and the scores all come from Global TV. Fill in <b>Out in ep</b> or <b>Finish</b> only to correct something.</p>
-      <form id="f"><div class="scroll"><table><thead><tr><th>Name</th><th>Tribe <span class="help">(for picks)</span></th><th>Tribe now <span class="help">(after a swap)</span></th><th>Other spellings <span class="help">(separate with ;)</span></th><th>Out in ep</th><th>Finish</th><th></th></tr></thead><tbody>
+      <p class="small muted">${S.castaways.some((c) => c.name) ? '' : "<b>No cast yet.</b> It fills in automatically from Global's Fantasy Tribe page (the Results page in Settings) once Global posts the tribes; the site checks every morning. You can also type it in here. "}The cast, who's out and the scores all come from Global TV. Numbers in <span style="color:#999">grey</span> are what the site worked out from Global's results; type over one only to correct it, and clear the box to go back to Global's.</p>
+      <p class="small muted"><b>Out in ep</b>: the episode the castaway was voted out or left. <b>Finish</b>: their place at the end of the season, 1st (the winner), 2nd or 3rd; leave it blank for everyone else. The site uses it to give anyone who picked the winner as MVP the winner bonus. The winner fills in from Global after the finale; 2nd and 3rd are optional.</p>
+      <form id="f"><div class="scroll"><table><thead><tr><th>Name</th><th>Tribe <span class="help">(for picks)</span></th><th>Tribe now <span class="help">(after a swap)</span></th><th>Other spellings <span class="help">(separate with ;)</span></th><th>Out in ep</th><th>Finish <span class="help">(1st, 2nd, 3rd)</span></th><th></th></tr></thead><tbody>
       ${S.castaways.map((c, i) => `<tr><td><input data-i="${i}" data-k="name" value="${esc(c.name)}"></td><td><input data-i="${i}" data-k="tribe" value="${esc(c.tribe)}" style="width:110px"></td><td><input data-i="${i}" data-k="tribe_now" value="${esc(c.tribe_now)}" placeholder="${esc(c.tribe)}" style="width:110px"></td>
-        <td><input data-i="${i}" data-k="aliases" value="${esc(c.aliases)}"></td><td><input data-i="${i}" data-k="out_episode" value="${esc(c.out_episode)}" style="width:70px"></td>
-        <td><input data-i="${i}" data-k="finish" value="${esc(c.finish)}" style="width:60px"></td><td><button type="button" class="btn small danger" data-rm="${i}">✕</button></td></tr>`).join('')}
+        <td><input data-i="${i}" data-k="aliases" value="${esc(c.aliases)}"></td><td><input data-i="${i}" data-k="out_episode" value="${esc(c.out_episode)}" placeholder="${esc(calc(c, 'out'))}" style="width:70px"></td>
+        <td><input data-i="${i}" data-k="finish" value="${esc(c.finish)}" placeholder="${esc(finLabel(calc(c, 'fin')))}" style="width:60px"></td><td><button type="button" class="btn small danger" data-rm="${i}">✕</button></td></tr>`).join('')}
       </tbody></table></div>
       <div class="row" style="margin-top:12px"><button type="button" class="btn" id="add">Add castaway</button><button class="btn primary">Save castaways</button></div></form></div>`;
     const collect = () => $$('[data-i]').forEach((el) => (S.castaways[+el.dataset.i][el.dataset.k] = el.value.trim()));
@@ -389,7 +401,7 @@
     $('#f').onsubmit = async (e) => {
       e.preventDefault(); const before = S.castaways.map((c) => ({ ...c })); collect();
       S.castaways = S.castaways.filter((c) => c.name);
-      if (!(await busy($('#f'), saveCastaways, 'Castaways saved.'))) S.castaways = before; else castaways();
+      if (!(await busy($('#f'), saveCastaways, 'Castaways saved.'))) S.castaways = before; else { S.castCalc = null; castaways(); }
     };
   }
 
